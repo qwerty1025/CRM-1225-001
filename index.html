@@ -2,116 +2,150 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日期週期計算器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>配送助手 V2 - Firebase 版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body class="bg-slate-100 min-h-screen py-10 px-4">
+<body class="bg-slate-50 font-sans antialiased text-slate-900">
 
-    <div id="app" class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
-        <div class="bg-indigo-600 p-6 text-white text-center">
-            <h1 class="text-2xl font-bold italic tracking-wider">
-                <i class="fa-regular fa-calendar-check mr-2"></i>日期週期計算器
-            </h1>
-            <p class="text-indigo-100 text-sm mt-1">即時計算結束日期</p>
-        </div>
-
-        <div class="p-6 space-y-6">
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-tight">
-                    1. 選擇起始日期
-                </label>
-                <input type="date" v-model="startDate" 
-                    class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition bg-slate-50 focus:bg-white font-medium text-slate-700">
-            </div>
-
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-tight">
-                    2. 選擇週期模式
-                </label>
-                <div class="grid grid-cols-1 gap-2">
-                    <label v-for="option in periodOptions" :key="option.id" 
-                        :class="['flex items-center p-3 border rounded-xl cursor-pointer transition-all duration-200', 
-                        selectedPeriod === option.weeks ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : 'border-slate-200 hover:bg-slate-50']">
-                        <input type="radio" :value="option.weeks" v-model="selectedPeriod" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                        <span class="ml-3 font-medium text-slate-700">模式 {{ option.id }}：{{ option.label }}</span>
-                    </label>
+    <div id="app" class="min-h-screen flex flex-col">
+        <header class="bg-indigo-700 text-white p-4 shadow-lg sticky top-0 z-20">
+            <div class="max-w-md mx-auto flex justify-between items-center">
+                <h1 class="text-xl font-bold flex items-center tracking-tight">
+                    <i class="fa-solid fa-clipboard-list mr-2"></i> 配送紀錄管理
+                </h1>
+                <div v-if="syncing" class="text-xs bg-indigo-800 px-2 py-1 rounded animate-pulse">
+                    同步中...
                 </div>
             </div>
+        </header>
 
-            <hr class="border-slate-100">
+        <main class="flex-grow p-4 max-w-md mx-auto w-full space-y-4">
+            
+            <section class="bg-white rounded-2xl shadow-sm p-4 border border-slate-200">
+                <label class="text-xs font-black text-slate-400 mb-2 block uppercase tracking-widest">STEP 1. 選擇起始日</label>
+                <input type="date" v-model="startDate" 
+                    class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-lg font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all">
+            </section>
 
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-tight">
-                    計算結果
-                </label>
-                <div class="relative">
-                    <textarea readonly rows="3"
-                        class="w-full p-4 bg-slate-900 text-emerald-400 font-mono text-sm rounded-xl border border-slate-800 resize-none leading-relaxed"
-                        v-model="calculationResult"></textarea>
-                    
-                    <button @click="copyToClipboard" 
-                        class="absolute bottom-3 right-3 px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 transition active:scale-95 flex items-center shadow-lg">
-                        <i class="fa-regular fa-copy mr-1.5"></i> 複製結果
+            <section>
+                <label class="text-xs font-black text-slate-400 mb-2 block uppercase tracking-widest ml-1">STEP 2. 預覽週期內容</label>
+                <div class="flex bg-slate-200 p-1 rounded-2xl mb-2">
+                    <button v-for="w in [4, 5, 8]" :key="w"
+                        @click="activeTab = w"
+                        :class="['flex-1 py-3 rounded-xl font-bold text-sm transition-all', 
+                        activeTab === w ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
+                        {{ w }} 週模式
                     </button>
                 </div>
-            </div>
-        </div>
 
-        <div class="bg-slate-50 p-4 border-t border-slate-100 text-center text-xs text-slate-400 font-medium">
-            Vue 3 + Tailwind CSS 練習專案
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden transition-all">
+                    <div class="p-4">
+                        <div class="bg-slate-900 rounded-xl p-4 mb-4">
+                            <pre class="whitespace-pre-wrap font-mono text-emerald-400 text-sm leading-relaxed">{{ generateContent(activeTab) }}</pre>
+                        </div>
+
+                        <button @click="handleCopy(activeTab)" 
+                            :disabled="syncing"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center">
+                            <i class="fa-solid fa-check-double mr-2"></i> 同意並存入資料庫
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <div v-if="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl z-50 transition-opacity">
+            {{ toastMessage }}
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo",
+            authDomain: "crm-ts-1225-001.firebaseapp.com",
+            projectId: "crm-ts-1225-001",
+            storageBucket: "crm-ts-1225-001.firebasestorage.app",
+            messagingSenderId: "925760221722",
+            appId: "1:925760221722:web:1aeda0b82f1f16b8dcd7a3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
         const { createApp, ref, computed } = Vue;
 
         createApp({
             setup() {
-                // 預設今天日期
-                const today = new Date().toISOString().substr(0, 10);
-                const startDate = ref(today);
-                const selectedPeriod = ref(12); // 預設 12 週
+                const startDate = ref(new Date().toISOString().substr(0, 10));
+                const activeTab = ref(4);
+                const toast = ref(false);
+                const toastMessage = ref("");
+                const syncing = ref(false);
 
-                const periodOptions = [
-                    { id: 'A', label: '連續 12 週', weeks: 12 },
-                    { id: 'B', label: '連續 4 週', weeks: 4 },
-                    { id: 'C', label: '連續 8 週', weeks: 8 }
-                ];
+                // 生成文字內容的邏輯
+                const generateContent = (weekCount) => {
+                    if (!startDate.value) return '請選擇日期';
+                    let output = "更新 配送紀錄📝\n如下：\n\n最新一期\n";
+                    const baseDate = new Date(startDate.value);
 
-                // 計算邏輯
-                const calculationResult = computed(() => {
-                    if (!startDate.value) return '請先選擇日期';
-
-                    const start = new Date(startDate.value);
-                    const end = new Date(startDate.value);
-                    
-                    // 加週數 (一週 7 天)
-                    end.setDate(start.getDate() + (selectedPeriod.value * 7));
-
-                    const startStr = start.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
-                    const endStr = end.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
-                    
-                    return `起始日期：${startStr}\n週期模式：連續 ${selectedPeriod.value} 週\n預計結束：${endStr}`;
-                });
-
-                // 複製功能
-                const copyToClipboard = () => {
-                    navigator.clipboard.writeText(calculationResult.value).then(() => {
-                        alert('內容已複製到剪貼簿！');
-                    }).catch(err => {
-                        console.error('複製失敗', err);
-                    });
+                    for (let i = 0; i < weekCount; i++) {
+                        const d = new Date(baseDate);
+                        d.setDate(baseDate.getDate() + (i * 7));
+                        const mStr = (d.getMonth() + 1).toString().padStart(2, '0');
+                        const dStr = d.getDate().toString().padStart(2, '0');
+                        
+                        let note = "";
+                        // 邏輯：最後一週標註收款
+                        if (i === weekCount - 1) {
+                            note = `（${mStr}.${dStr}收到匯款）`;
+                        }
+                        output += `✅${mStr}/${dStr}${note}\n`;
+                    }
+                    return output;
                 };
 
-                return {
-                    startDate,
-                    selectedPeriod,
-                    periodOptions,
-                    calculationResult,
-                    copyToClipboard
+                // 顯示提示訊息
+                const showToast = (msg) => {
+                    toastMessage.value = msg;
+                    toast.value = true;
+                    setTimeout(() => toast.value = false, 2500);
+                };
+
+                // 處理複製與 Firebase 儲存
+                const handleCopy = async (weekCount) => {
+                    const content = generateContent(weekCount);
+                    syncing.ref = true;
+
+                    try {
+                        // 1. 複製到剪貼簿
+                        await navigator.clipboard.writeText(content);
+
+                        // 2. 存入 Firebase
+                        await addDoc(collection(db, "delivery_records"), {
+                            startDate: startDate.value,
+                            weeks: weekCount,
+                            content: content,
+                            createdAt: serverTimestamp()
+                        });
+
+                        showToast("✅ 已複製並成功存入 Firebase");
+                    } catch (e) {
+                        console.error("Error: ", e);
+                        showToast("❌ 儲存失敗，但已複製內容");
+                    } finally {
+                        syncing.value = false;
+                    }
+                };
+
+                return { 
+                    startDate, activeTab, syncing, toast, toastMessage,
+                    generateContent, handleCopy 
                 };
             }
         }).mount('#app');
