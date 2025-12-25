@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>配送助手 V2 - Firebase 版</title>
+    <title>配送紀錄助手 - Firebase Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .tab-active { @apply bg-white text-indigo-700 shadow-sm; }
+    </style>
 </head>
 <body class="bg-slate-50 font-sans antialiased text-slate-900">
 
@@ -14,58 +18,72 @@
         <header class="bg-indigo-700 text-white p-4 shadow-lg sticky top-0 z-20">
             <div class="max-w-md mx-auto flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center tracking-tight">
-                    <i class="fa-solid fa-clipboard-list mr-2"></i> 配送紀錄管理
+                    <i class="fa-solid fa-truck-ramp-box mr-2"></i> 配送紀錄助手
                 </h1>
-                <div v-if="syncing" class="text-xs bg-indigo-800 px-2 py-1 rounded animate-pulse">
-                    同步中...
+                <div v-if="loading" class="text-xs bg-indigo-800 px-2 py-1 rounded animate-pulse">
+                    儲存中...
                 </div>
             </div>
         </header>
 
         <main class="flex-grow p-4 max-w-md mx-auto w-full space-y-4">
             
-            <section class="bg-white rounded-2xl shadow-sm p-4 border border-slate-200">
-                <label class="text-xs font-black text-slate-400 mb-2 block uppercase tracking-widest">STEP 1. 選擇起始日</label>
+            <section class="bg-white rounded-2xl shadow-sm p-5 border border-slate-200">
+                <label class="text-xs font-black text-slate-400 mb-3 block uppercase tracking-widest">
+                    <i class="fa-regular fa-calendar-plus mr-1"></i> 第一步：選擇起始日期
+                </label>
                 <input type="date" v-model="startDate" 
                     class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-lg font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all">
             </section>
 
             <section>
-                <label class="text-xs font-black text-slate-400 mb-2 block uppercase tracking-widest ml-1">STEP 2. 預覽週期內容</label>
-                <div class="flex bg-slate-200 p-1 rounded-2xl mb-2">
+                <label class="text-xs font-black text-slate-400 mb-3 block uppercase tracking-widest ml-1">
+                    <i class="fa-solid fa-layer-group mr-1"></i> 第二步：確認週期內容
+                </label>
+                
+                <div class="flex bg-slate-200 p-1.5 rounded-2xl mb-3">
                     <button v-for="w in [4, 5, 8]" :key="w"
                         @click="activeTab = w"
                         :class="['flex-1 py-3 rounded-xl font-bold text-sm transition-all', 
-                        activeTab === w ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700']">
-                        {{ w }} 週模式
+                        activeTab === w ? 'bg-white text-indigo-700 shadow-md' : 'text-slate-500']">
+                        {{ w }} 週
                     </button>
                 </div>
 
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden transition-all">
-                    <div class="p-4">
-                        <div class="bg-slate-900 rounded-xl p-4 mb-4">
-                            <pre class="whitespace-pre-wrap font-mono text-emerald-400 text-sm leading-relaxed">{{ generateContent(activeTab) }}</pre>
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-5">
+                        <div class="bg-slate-900 rounded-xl p-4 mb-4 relative group">
+                            <pre class="whitespace-pre-wrap font-mono text-emerald-400 text-sm leading-relaxed">{{ generatedText }}</pre>
                         </div>
 
-                        <button @click="handleCopy(activeTab)" 
-                            :disabled="syncing"
-                            class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center">
-                            <i class="fa-solid fa-check-double mr-2"></i> 同意並存入資料庫
+                        <button @click="saveAndCopy" 
+                            :disabled="loading"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center">
+                            <i v-if="!loading" class="fa-solid fa-copy mr-2"></i>
+                            <i v-else class="fa-solid fa-spinner animate-spin mr-2"></i>
+                            複製並存入雲端
                         </button>
                     </div>
                 </div>
             </section>
         </main>
 
-        <div v-if="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl z-50 transition-opacity">
-            {{ toastMessage }}
-        </div>
+        <transition name="fade">
+            <div v-if="toast.show" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-8 py-3 rounded-full text-sm font-bold shadow-2xl z-50">
+                {{ toast.message }}
+            </div>
+        </transition>
+
+        <footer class="p-6 text-center text-slate-400 text-xs">
+            CRM-TS-1225-001 | 配送員專用工具
+        </footer>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // 您的 Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo",
             authDomain: "crm-ts-1225-001.firebaseapp.com",
@@ -84,71 +102,80 @@
             setup() {
                 const startDate = ref(new Date().toISOString().substr(0, 10));
                 const activeTab = ref(4);
-                const toast = ref(false);
-                const toastMessage = ref("");
-                const syncing = ref(false);
+                const loading = ref(false);
+                const toast = ref({ show: false, message: "" });
 
-                // 生成文字內容的邏輯
-                const generateContent = (weekCount) => {
-                    if (!startDate.value) return '請選擇日期';
-                    let output = "更新 配送紀錄📝\n如下：\n\n最新一期\n";
+                // 計算生成的文字內容
+                const generatedText = computed(() => {
+                    if (!startDate.value) return "請選擇日期";
+                    
+                    let text = "更新 配送紀錄📝\n如下：\n\n最新一期\n";
                     const baseDate = new Date(startDate.value);
 
-                    for (let i = 0; i < weekCount; i++) {
+                    for (let i = 0; i < activeTab.value; i++) {
                         const d = new Date(baseDate);
                         d.setDate(baseDate.getDate() + (i * 7));
                         const mStr = (d.getMonth() + 1).toString().padStart(2, '0');
                         const dStr = d.getDate().toString().padStart(2, '0');
                         
                         let note = "";
-                        // 邏輯：最後一週標註收款
-                        if (i === weekCount - 1) {
+                        // 自動邏輯：最後一週加上收款文字
+                        if (i === activeTab.value - 1) {
                             note = `（${mStr}.${dStr}收到匯款）`;
                         }
-                        output += `✅${mStr}/${dStr}${note}\n`;
+                        text += `✅${mStr}/${dStr}${note}\n`;
                     }
-                    return output;
-                };
+                    return text;
+                });
 
-                // 顯示提示訊息
                 const showToast = (msg) => {
-                    toastMessage.value = msg;
-                    toast.value = true;
-                    setTimeout(() => toast.value = false, 2500);
+                    toast.value.message = msg;
+                    toast.value.show = true;
+                    setTimeout(() => toast.value.show = false, 3000);
                 };
 
-                // 處理複製與 Firebase 儲存
-                const handleCopy = async (weekCount) => {
-                    const content = generateContent(weekCount);
-                    syncing.ref = true;
+                // 核心功能：存儲與複製
+                const saveAndCopy = async () => {
+                    loading.value = true;
+                    const content = generatedText.value;
 
                     try {
                         // 1. 複製到剪貼簿
                         await navigator.clipboard.writeText(content);
 
-                        // 2. 存入 Firebase
+                        // 2. 寫入 Firebase Firestore
                         await addDoc(collection(db, "delivery_records"), {
-                            startDate: startDate.value,
-                            weeks: weekCount,
-                            content: content,
-                            createdAt: serverTimestamp()
+                            date_start: startDate.value,
+                            period_weeks: activeTab.value,
+                            full_content: content,
+                            created_at: serverTimestamp(),
+                            device: "mobile_web"
                         });
 
-                        showToast("✅ 已複製並成功存入 Firebase");
-                    } catch (e) {
-                        console.error("Error: ", e);
-                        showToast("❌ 儲存失敗，但已複製內容");
+                        showToast("✅ 已複製內容並同步雲端！");
+                    } catch (err) {
+                        console.error(err);
+                        showToast("❌ 雲端同步失敗，但已複製文字");
                     } finally {
-                        syncing.value = false;
+                        loading.value = false;
                     }
                 };
 
-                return { 
-                    startDate, activeTab, syncing, toast, toastMessage,
-                    generateContent, handleCopy 
+                return {
+                    startDate,
+                    activeTab,
+                    generatedText,
+                    loading,
+                    toast,
+                    saveAndCopy
                 };
             }
         }).mount('#app');
     </script>
+
+    <style>
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
 </body>
 </html>
