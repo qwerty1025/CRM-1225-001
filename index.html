@@ -3,179 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>配送紀錄助手 - Firebase Edition</title>
+    <title>配送員助手 - iPhone 15 實機介面</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body { -webkit-tap-highlight-color: transparent; }
-        .tab-active { @apply bg-white text-indigo-700 shadow-sm; }
+        /* iPhone 15 螢幕適配與觸控優化 */
+        :root { --safe-area-bottom: 34px; }
+        body { background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .tab-content { height: calc(100vh - 150px); overflow-y: auto; padding-bottom: 100px; }
+        .iphone-card { @apply bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4; }
+        .input-group label { @apply block text-xs font-bold text-slate-400 mb-1 uppercase; }
+        .input-style { @apply w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:border-indigo-500 focus:bg-white outline-none transition-all; }
     </style>
 </head>
-<body class="bg-slate-50 font-sans antialiased text-slate-900">
+<body>
 
-    <div id="app" class="min-h-screen flex flex-col">
-        <header class="bg-indigo-700 text-white p-4 shadow-lg sticky top-0 z-20">
-            <div class="max-w-md mx-auto flex justify-between items-center">
-                <h1 class="text-xl font-bold flex items-center tracking-tight">
-                    <i class="fa-solid fa-truck-ramp-box mr-2"></i> 配送紀錄助手
-                </h1>
-                <div v-if="loading" class="text-xs bg-indigo-800 px-2 py-1 rounded animate-pulse">
-                    儲存中...
-                </div>
+    <div id="app" class="max-w-[430px] mx-auto min-h-screen relative shadow-2xl bg-slate-50">
+        
+        <header class="bg-white border-b border-slate-200 p-4 sticky top-0 z-20">
+            <div class="flex justify-between items-center">
+                <h1 class="text-xl font-black text-indigo-700 italic">GOAT <span class="text-slate-800">DELIVERY</span></h1>
+                <span class="text-xs font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">iPhone 15 Mode</span>
             </div>
         </header>
 
-        <main class="flex-grow p-4 max-w-md mx-auto w-full space-y-4">
+        <main class="tab-content p-4">
             
-            <section class="bg-white rounded-2xl shadow-sm p-5 border border-slate-200">
-                <label class="text-xs font-black text-slate-400 mb-3 block uppercase tracking-widest">
-                    <i class="fa-regular fa-calendar-plus mr-1"></i> 第一步：選擇起始日期
-                </label>
-                <input type="date" v-model="startDate" 
-                    class="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-lg font-bold focus:border-indigo-500 focus:bg-white outline-none transition-all">
-            </section>
-
-            <section>
-                <label class="text-xs font-black text-slate-400 mb-3 block uppercase tracking-widest ml-1">
-                    <i class="fa-solid fa-layer-group mr-1"></i> 第二步：確認週期內容
-                </label>
-                
-                <div class="flex bg-slate-200 p-1.5 rounded-2xl mb-3">
-                    <button v-for="w in [4, 5, 8]" :key="w"
-                        @click="activeTab = w"
-                        :class="['flex-1 py-3 rounded-xl font-bold text-sm transition-all', 
-                        activeTab === w ? 'bg-white text-indigo-700 shadow-md' : 'text-slate-500']">
-                        {{ w }} 週
-                    </button>
-                </div>
-
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="p-5">
-                        <div class="bg-slate-900 rounded-xl p-4 mb-4 relative group">
-                            <pre class="whitespace-pre-wrap font-mono text-emerald-400 text-sm leading-relaxed">{{ generatedText }}</pre>
+            <div v-if="activeTab === 'A'" class="animate-fade-in-up">
+                <div class="iphone-card">
+                    <h2 class="font-bold text-lg mb-4 text-slate-800">客戶配送登記</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label>起始日期</label>
+                            <input type="date" v-model="form.startDate" class="input-style">
                         </div>
 
-                        <button @click="saveAndCopy" 
-                            :disabled="loading"
-                            class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center">
-                            <i v-if="!loading" class="fa-solid fa-copy mr-2"></i>
-                            <i v-else class="fa-solid fa-spinner animate-spin mr-2"></i>
-                            複製並存入雲端
-                        </button>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button v-for="w in [4, 5, 8]" @click="form.weeks = w"
+                                :class="['py-2 rounded-lg font-bold border-2 transition-all', form.weeks === w ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-100 bg-slate-50 text-slate-400']">
+                                {{ w }} 週
+                            </button>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="input-group">
+                            <label>街區編號</label>
+                            <select v-model="form.blockId" class="input-style">
+                                <option value="大埔路段">大埔路段 (預設)</option>
+                                <option value="市中心區">市中心區</option>
+                                <option value="工業園區">工業園區</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="input-group">
+                                <label>客戶姓名</label>
+                                <input type="text" v-model="form.name" placeholder="請輸入姓名" class="input-style">
+                            </div>
+                            <div class="input-group">
+                                <label>電話</label>
+                                <input type="tel" v-model="form.phone" placeholder="09xx..." class="input-style">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>詳細地址</label>
+                            <input type="text" v-model="form.address" placeholder="街道門牌" class="input-style">
+                        </div>
+
+                        <div class="input-group">
+                            <label>口味選擇</label>
+                            <input type="text" v-model="form.flavor" placeholder="例如：原味、低脂" class="input-style">
+                        </div>
                     </div>
                 </div>
-            </section>
+
+                <div class="iphone-card bg-slate-900 border-none">
+                    <label class="text-indigo-400 text-xs font-bold mb-2 block">預覽紀錄📝</label>
+                    <pre class="text-emerald-400 text-sm font-mono whitespace-pre-wrap leading-relaxed">{{ previewText }}</pre>
+                    <button @click="saveAndCopy" :disabled="loading"
+                        class="w-full mt-4 bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        <i v-if="!loading" class="fa-solid fa-cloud-arrow-up"></i>
+                        <i v-else class="fa-solid fa-spinner animate-spin"></i>
+                        {{ loading ? '同步中...' : '存檔並複製內容' }}
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="activeTab === 'B'" class="space-y-3">
+                <h2 class="font-bold text-lg mb-2 px-2">歷史紀錄</h2>
+                <div v-if="history.length === 0" class="text-center py-20 text-slate-400 italic">尚未有紀錄...</div>
+                <div v-for="item in history" :key="item.id" class="iphone-card">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-black text-slate-800">{{ item.name }}</div>
+                            <div class="text-xs text-slate-500">{{ item.blockId }} | {{ item.flavor }}</div>
+                        </div>
+                        <div class="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-500">{{ item.date_start }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="activeTab === 'C'" class="flex flex-col items-center justify-center h-full text-slate-400 italic">
+                <i class="fa-solid fa-calculator text-5xl mb-4 opacity-20"></i>
+                簡單估價功能開發中...
+            </div>
+            <div v-if="activeTab === 'D'" class="flex flex-col items-center justify-center h-full text-slate-400 italic">
+                <i class="fa-solid fa-bell-slash text-5xl mb-4 opacity-20"></i>
+                停送摘要功能開發中...
+            </div>
+
         </main>
 
-        <transition name="fade">
-            <div v-if="toast.show" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-8 py-3 rounded-full text-sm font-bold shadow-2xl z-50">
-                {{ toast.message }}
+        <nav class="fixed bottom-0 w-full max-w-[430px] bg-white/80 backdrop-blur-lg border-t border-slate-200 px-6 pt-3 pb-[var(--safe-area-bottom)] z-30">
+            <div class="flex justify-between items-center">
+                <button @click="activeTab = 'A'" :class="['flex flex-col items-center gap-1', activeTab === 'A' ? 'text-indigo-600' : 'text-slate-400']">
+                    <i class="fa-solid fa-calendar-day text-xl"></i>
+                    <span class="text-[10px] font-bold">日期計算</span>
+                </button>
+                <button @click="activeTab = 'B'" :class="['flex flex-col items-center gap-1', activeTab === 'B' ? 'text-indigo-600' : 'text-slate-400']">
+                    <i class="fa-solid fa-clock-history text-xl"></i>
+                    <span class="text-[10px] font-bold">歷史紀錄</span>
+                </button>
+                <button @click="activeTab = 'C'" :class="['flex flex-col items-center gap-1', activeTab === 'C' ? 'text-indigo-600' : 'text-slate-400']">
+                    <i class="fa-solid fa-dollar-sign text-xl"></i>
+                    <span class="text-[10px] font-bold">簡單估價</span>
+                </button>
+                <button @click="activeTab = 'D'" :class="['flex flex-col items-center gap-1', activeTab === 'D' ? 'text-indigo-600' : 'text-slate-400']">
+                    <i class="fa-solid fa-file-lines text-xl"></i>
+                    <span class="text-[10px] font-bold">停送摘要</span>
+                </button>
             </div>
-        </transition>
+        </nav>
 
-        <footer class="p-6 text-center text-slate-400 text-xs">
-            CRM-TS-1225-001 | 配送員專用工具
-        </footer>
+        <div v-if="toast" class="fixed top-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl z-50">
+            {{ toastMsg }}
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // 您的 Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo",
             authDomain: "crm-ts-1225-001.firebaseapp.com",
+            databaseURL: "https://crm-ts-1225-001-default-rtdb.firebaseio.com",
             projectId: "crm-ts-1225-001",
             storageBucket: "crm-ts-1225-001.firebasestorage.app",
             messagingSenderId: "925760221722",
-            appId: "1:925760221722:web:1aeda0b82f1f16b8dcd7a3"
+            appId: "1:925760221722:web:aac47eb5a7cba165dcd7a3"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const { createApp, ref, computed } = Vue;
+        const { createApp, ref, reactive, computed, onMounted } = Vue;
 
         createApp({
             setup() {
-                const startDate = ref(new Date().toISOString().substr(0, 10));
-                const activeTab = ref(4);
+                const activeTab = ref('A');
                 const loading = ref(false);
-                const toast = ref({ show: false, message: "" });
+                const toast = ref(false);
+                const toastMsg = ref("");
+                const history = ref([]);
 
-                // 計算生成的文字內容
-                const generatedText = computed(() => {
-                    if (!startDate.value) return "請選擇日期";
+                const form = reactive({
+                    startDate: new Date().toISOString().substr(0, 10),
+                    weeks: 4,
+                    blockId: '大埔路段',
+                    name: '',
+                    phone: '',
+                    address: '',
+                    flavor: ''
+                });
+
+                // 生成預覽文字
+                const previewText = computed(() => {
+                    let text = `更新 配送紀錄📝\n`;
+                    text += `客戶：${form.name || '(未填)'} / ${form.phone || '(未填)'}\n`;
+                    text += `地址：${form.blockId} ${form.address}\n`;
+                    text += `口味：${form.flavor}\n`;
+                    text += `----------------\n最新一期：\n`;
                     
-                    let text = "更新 配送紀錄📝\n如下：\n\n最新一期\n";
-                    const baseDate = new Date(startDate.value);
-
-                    for (let i = 0; i < activeTab.value; i++) {
-                        const d = new Date(baseDate);
-                        d.setDate(baseDate.getDate() + (i * 7));
+                    const base = new Date(form.startDate);
+                    for (let i = 0; i < form.weeks; i++) {
+                        const d = new Date(base);
+                        d.setDate(base.getDate() + (i * 7));
                         const mStr = (d.getMonth() + 1).toString().padStart(2, '0');
                         const dStr = d.getDate().toString().padStart(2, '0');
-                        
-                        let note = "";
-                        // 自動邏輯：最後一週加上收款文字
-                        if (i === activeTab.value - 1) {
-                            note = `（${mStr}.${dStr}收到匯款）`;
-                        }
+                        let note = (i === form.weeks - 1) ? `（預計收款日）` : "";
                         text += `✅${mStr}/${dStr}${note}\n`;
                     }
                     return text;
                 });
 
-                const showToast = (msg) => {
-                    toast.value.message = msg;
-                    toast.value.show = true;
-                    setTimeout(() => toast.value.show = false, 3000);
-                };
-
-                // 核心功能：存儲與複製
                 const saveAndCopy = async () => {
                     loading.value = true;
-                    const content = generatedText.value;
-
                     try {
                         // 1. 複製到剪貼簿
-                        await navigator.clipboard.writeText(content);
+                        await navigator.clipboard.writeText(previewText.value);
 
-                        // 2. 寫入 Firebase Firestore
+                        // 2. 存入 Firebase
                         await addDoc(collection(db, "delivery_records"), {
-                            date_start: startDate.value,
-                            period_weeks: activeTab.value,
-                            full_content: content,
-                            created_at: serverTimestamp(),
-                            device: "mobile_web"
+                            ...form,
+                            full_content: previewText.value,
+                            created_at: serverTimestamp()
                         });
 
-                        showToast("✅ 已複製內容並同步雲端！");
-                    } catch (err) {
-                        console.error(err);
-                        showToast("❌ 雲端同步失敗，但已複製文字");
+                        showToast("✅ 已儲存並複製內容");
+                    } catch (e) {
+                        showToast("❌ 錯誤: " + e.message);
                     } finally {
                         loading.value = false;
                     }
                 };
 
-                return {
-                    startDate,
-                    activeTab,
-                    generatedText,
-                    loading,
-                    toast,
-                    saveAndCopy
+                const showToast = (msg) => {
+                    toastMsg.value = msg;
+                    toast.value = true;
+                    setTimeout(() => toast.value = false, 2500);
                 };
+
+                // 監聽歷史紀錄
+                onMounted(() => {
+                    const q = query(collection(db, "delivery_records"), orderBy("created_at", "desc"));
+                    onSnapshot(q, (snap) => {
+                        history.value = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    });
+                });
+
+                return { activeTab, form, previewText, saveAndCopy, loading, toast, toastMsg, history };
             }
         }).mount('#app');
     </script>
-
-    <style>
-        .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
-        .fade-enter-from, .fade-leave-to { opacity: 0; }
-    </style>
 </body>
 </html>
