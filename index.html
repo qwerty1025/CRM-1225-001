@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>配送員助手 V7 - 街區分流版</title>
+    <title>咩咩配送 CRM V8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -11,24 +11,28 @@
         :root { --safe-bottom: 34px; }
         body { background-color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
         .ios-content { height: calc(100vh - 160px); overflow-y: auto; padding-bottom: 150px; }
-        /* 日曆狀態色 */
-        .state-leave { background-color: #f97316 !important; color: white; } 
-        .state-fail { background-color: #ef4444 !important; color: white; }  
-        .state-success { background-color: #22c55e !important; color: white; } 
-        /* 方案預期配送日 - 虛線框 */
-        .is-expected { border: 2px dashed #6366f1 !important; }
-        .day-cell { min-height: 52px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 12px; }
+        
+        /* 閉環狀態色彩 */
+        .state-ready { background-color: #e0e7ff !important; color: #4338ca; } /* 應送: 淡紫色 */
+        .state-success { background-color: #22c55e !important; color: white; } /* 已送: 綠色 */
+        .state-leave { background-color: #1e293b !important; color: white; }   /* 請假: 黑色 */
+        .state-fail { background-color: #ef4444 !important; color: white; }    /* 未送: 紅色 */
+        
+        .is-expected-border { border: 2px dashed #6366f1 !important; }
+        .day-cell { min-height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; position: relative; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="app" class="max-w-[430px] mx-auto min-h-screen bg-slate-50 relative">
+    <div id="app" class="max-w-[430px] mx-auto min-h-screen bg-slate-50 relative shadow-2xl">
         
         <header class="bg-white p-4 sticky top-0 z-30 border-b border-slate-200">
             <div class="flex justify-between items-center">
-                <h1 class="text-xl font-black text-slate-800">{{ tabTitles[activeTab] }}</h1>
-                <div v-if="activeTab === 'A'" class="flex gap-2">
-                    <span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full font-bold">街區作業</span>
+                <h1 class="text-xl font-black text-indigo-700 italic">GOAT <span class="text-slate-800">V8</span></h1>
+                <div class="flex gap-2 text-xs font-bold">
+                    <span v-if="activeTab === 'B'" class="bg-indigo-600 text-white px-3 py-1 rounded-full">備貨模式</span>
+                    <span v-else class="bg-slate-100 text-slate-500 px-3 py-1 rounded-full">配送模式</span>
                 </div>
             </div>
         </header>
@@ -36,42 +40,44 @@
         <main class="ios-content">
             
             <div v-if="activeTab === 'A'" class="p-3">
-                <div class="flex overflow-x-auto gap-2 mb-4 no-scrollbar pb-2">
+                <div class="flex overflow-x-auto gap-2 mb-4 no-scrollbar">
                     <button v-for="b in blocks" @click="selectedBlock = b"
-                        :class="['whitespace-nowrap px-4 py-2 rounded-full text-sm font-bold transition-all', selectedBlock === b ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 border border-slate-200']">
+                        :class="['whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all', selectedBlock === b ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-400 border border-slate-200']">
                         {{ b }}
                     </button>
                 </div>
 
-                <div class="bg-white rounded-2xl p-2 mb-4 shadow-sm border border-slate-200">
-                    <div class="flex overflow-x-auto gap-2 no-scrollbar">
-                        <button v-for="c in filteredCustomers" @click="selectedCid = c.id"
-                            :class="['whitespace-nowrap px-4 py-3 rounded-xl text-sm font-bold', selectedCid === c.id ? 'bg-slate-800 text-white' : 'text-slate-500']">
-                            {{ c.name }}
-                        </button>
-                    </div>
+                <div class="bg-white rounded-2xl p-2 mb-4 shadow-sm border border-slate-200 flex overflow-x-auto gap-2 no-scrollbar">
+                    <button v-for="c in filteredCustomers" @click="selectedCid = c.id"
+                        :class="['whitespace-nowrap px-4 py-3 rounded-xl text-sm font-bold transition-colors', selectedCid === c.id ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-50']">
+                        {{ c.name }}
+                    </button>
                 </div>
 
                 <div v-if="currentCustomer" class="animate-fade-in">
-                    <div class="bg-indigo-50 p-3 rounded-2xl mb-4 border border-indigo-100 flex justify-between items-center">
+                    <div class="bg-white p-4 rounded-3xl shadow-sm border border-slate-200 mb-4 flex justify-between items-end">
                         <div>
-                            <div class="text-xs text-indigo-400 font-bold">配送方案：{{ currentCustomer.plan }}</div>
-                            <div class="text-sm font-black text-indigo-900">{{ currentCustomer.note }}</div>
+                            <div class="text-[10px] text-indigo-500 font-black uppercase mb-1">方案 {{ currentCustomer.plan }}</div>
+                            <div class="text-lg font-black text-slate-800">{{ currentCustomer.name }}</div>
+                            <div class="text-xs text-slate-400">{{ currentCustomer.note }}</div>
                         </div>
                         <div class="text-right">
-                            <div class="text-[10px] text-slate-400 font-bold">本月金額</div>
-                            <div class="text-xl font-black text-indigo-600">${{ currentMonthTotal }}</div>
+                            <div class="text-[10px] text-slate-400 font-bold">本月應收</div>
+                            <div class="text-2xl font-black text-emerald-600">${{ currentMonthTotal }}</div>
                         </div>
                     </div>
 
-                    <div v-for="month in renderedMonths" :key="month.month" class="bg-white rounded-3xl p-2 shadow-sm border border-slate-200 mb-6">
-                        <div class="text-center font-black py-2 text-slate-700">{{ month.year }}年 {{ month.month + 1 }}月</div>
+                    <div v-for="month in renderedMonths" :key="month.id" class="bg-white rounded-3xl p-2 shadow-sm border border-slate-200 mb-6">
+                        <div class="text-center font-black py-3 text-slate-700 border-b border-slate-50 mb-2">{{ month.year }}年 {{ month.month + 1 }}月</div>
                         <div class="grid grid-cols-7 gap-1">
                             <div v-for="d in ['日','一','二','三','四','五','六']" class="text-center text-[10px] text-slate-300 font-bold py-1">{{ d }}</div>
                             <div v-for="day in month.days" :key="day.dateKey" 
-                                @click="day.date && toggleStatus(selectedCid, day.dateKey)"
-                                :class="['day-cell', day.date ? 'bg-slate-50' : 'bg-transparent', getStatusClass(selectedCid, day.dateKey), (day.date && isExpectedDay(selectedCid, day.dateKey)) ? 'is-expected' : '']">
+                                @click="day.date && handleDayClick(selectedCid, day.dateKey)"
+                                :class="['day-cell', day.date ? 'bg-slate-50' : 'bg-transparent', getStatusClass(selectedCid, day.dateKey)]">
                                 {{ day.date }}
+                                <div v-if="day.date && logs[selectedCid]?.[day.dateKey] === 'L'" class="absolute inset-0 flex items-center justify-center text-white/30">
+                                    <i class="fa-solid fa-xmark text-2xl"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -80,95 +86,108 @@
 
             <div v-if="activeTab === 'B'" class="p-4 space-y-4">
                 <div class="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar py-2">
-                    <button v-for="n in 11" @click="prepOffset = n-1"
-                        :class="['whitespace-nowrap px-4 py-2 rounded-xl font-bold text-xs', prepOffset === n-1 ? 'bg-slate-800 text-white' : 'bg-white text-slate-400']">
+                    <button v-for="n in 6" @click="prepOffset = n-1"
+                        :class="['whitespace-nowrap px-5 py-3 rounded-2xl font-bold text-sm transition-all', prepOffset === n-1 ? 'bg-slate-800 text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-100']">
                         {{ getPrepDateLabel(n-1) }}
                     </button>
                 </div>
 
-                <div class="bg-indigo-600 text-white p-6 rounded-3xl shadow-lg mb-6">
-                    <div class="text-sm opacity-80 mb-1">{{ getPrepDateFull(prepOffset) }} 總計</div>
-                    <div class="text-5xl font-black">{{ prepTotalCount }} <span class="text-xl">瓶</span></div>
+                <div class="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-xl shadow-indigo-100 mb-6 relative overflow-hidden">
+                    <div class="relative z-10">
+                        <div class="text-xs font-bold opacity-80 mb-1 tracking-widest">{{ getPrepDateFull(prepOffset) }}</div>
+                        <div class="text-5xl font-black">{{ prepTotalCount }} <span class="text-lg font-normal">瓶</span></div>
+                    </div>
+                    <i class="fa-solid fa-truck-loading absolute -right-4 -bottom-4 text-8xl opacity-10"></i>
                 </div>
 
-                <div v-for="item in prepList" :key="item.id" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
-                    <div>
-                        <div class="font-bold text-slate-800">{{ item.name }}</div>
-                        <div class="text-xs text-slate-400">{{ item.block }} | {{ item.phone }}</div>
+                <div class="space-y-2">
+                    <div v-for="item in prepList" :key="item.id" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center active:scale-95 transition-transform">
+                        <div>
+                            <div class="font-black text-slate-800">{{ item.name }}</div>
+                            <div class="text-xs text-slate-400">{{ item.block }} | {{ item.phone }}</div>
+                        </div>
+                        <div class="bg-slate-50 px-4 py-2 rounded-xl font-black text-indigo-600 text-lg border border-slate-100">
+                            {{ item.count }}
+                        </div>
                     </div>
-                    <div class="text-xl font-black text-slate-700">x{{ item.count }}</div>
                 </div>
             </div>
 
             <div v-if="activeTab === 'C'" class="p-4">
-                <button @click="openEdit(null)" class="w-full py-4 bg-white border-2 border-dashed border-slate-300 rounded-2xl text-slate-400 font-bold mb-4">
-                    + 新增客戶資料
+                <button @click="openEdit(null)" class="w-full py-5 bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-3xl text-indigo-500 font-black mb-6 active:bg-indigo-100 transition-colors">
+                    <i class="fa-solid fa-user-plus mr-2"></i> 新增配送訂戶
                 </button>
-                <div v-for="c in customers" @click="openEdit(c)" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-2 flex justify-between items-center">
+                <div v-for="c in customers" @click="openEdit(c)" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3 flex justify-between items-center">
                     <div>
-                        <div class="font-bold">{{ c.name }}</div>
-                        <div class="text-xs text-slate-400">{{ c.block }} / 方案 {{ c.plan }}</div>
+                        <div class="font-black text-slate-800">{{ c.name }}</div>
+                        <div class="text-[10px] font-bold text-indigo-500 mt-1 uppercase bg-indigo-50 px-2 py-0.5 rounded-full inline-block">{{ c.block }} / 方案 {{ c.plan }}</div>
                     </div>
-                    <i class="fa-solid fa-chevron-right text-slate-200"></i>
+                    <div class="text-right">
+                        <div class="text-lg font-black text-slate-700">x{{ c.count }}</div>
+                        <i class="fa-solid fa-pen-to-square text-slate-300 text-xs"></i>
+                    </div>
                 </div>
             </div>
 
         </main>
 
-        <div v-if="showModal" class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-            <div class="bg-white w-full max-w-[430px] rounded-t-3xl p-6 space-y-4 animate-slide-up shadow-2xl">
+        <div v-if="showModal" class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-[430px] rounded-t-[2.5rem] p-8 space-y-5 animate-slide-up shadow-2xl">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-black">{{ form.id ? '編輯客戶' : '新增客戶' }}</h2>
-                    <button @click="showModal = false" class="text-slate-300 text-2xl">&times;</button>
+                    <h2 class="text-2xl font-black text-slate-800">{{ form.id ? '編輯訂戶資料' : '新訂戶登記' }}</h2>
+                    <button @click="showModal = false" class="bg-slate-100 w-10 h-10 rounded-full text-slate-400 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="col-span-2">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">顧客姓名</label>
-                        <input v-model="form.name" type="text" class="w-full bg-slate-100 p-3 rounded-xl">
+                
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="col-span-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">1.7 顧客姓名</label>
+                            <input v-model="form.name" type="text" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">1.1 街區</label>
+                            <select v-model="form.block" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold">
+                                <option v-for="b in blocks" :value="b">{{ b }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">1.3 數量</label>
+                            <select v-model="form.count" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold">
+                                <option v-for="n in [1,2,3,4]" :value="n">{{ n }} 瓶</option>
+                            </select>
+                        </div>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">街區設定</label>
-                        <select v-model="form.block" class="w-full bg-slate-100 p-3 rounded-xl">
-                            <option v-for="b in blocks" :value="b">{{ b }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">配送方案</label>
-                        <select v-model="form.plan" class="w-full bg-slate-100 p-3 rounded-xl">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">1.4 配送方案</label>
+                        <select v-model="form.plan" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold">
                             <option v-for="(v, k) in plans" :value="k">{{ k }}. {{ v }}</option>
                         </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">配送數量</label>
-                        <select v-model="form.count" class="w-full bg-slate-100 p-3 rounded-xl">
-                            <option v-for="n in [1,2,3,4]" :value="n">{{ n }} 瓶</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">聯繫方式</label>
-                        <input v-model="form.phone" type="text" class="w-full bg-slate-100 p-3 rounded-xl">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">收款要求 / 備註</label>
-                        <input v-model="form.note" type="text" class="w-full bg-slate-100 p-3 rounded-xl">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">1.6 聯繫電話 / 1.5 收款需求</label>
+                        <input v-model="form.phone" type="tel" placeholder="聯繫電話" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold mb-2">
+                        <input v-model="form.note" type="text" placeholder="收款要求或備註" class="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl font-bold">
                     </div>
                 </div>
-                <button @click="submitCustomer" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg shadow-lg shadow-indigo-100">儲存變更</button>
-                <button v-if="form.id" @click="deleteCustomer" class="w-full py-2 text-red-400 font-bold text-sm">刪除客戶資料</button>
+
+                <div class="flex gap-3 pt-4">
+                    <button @click="submitCustomer" class="flex-1 bg-indigo-600 text-white py-5 rounded-3xl font-black text-lg shadow-lg active:scale-95 transition-transform">儲存資料</button>
+                    <button v-if="form.id" @click="deleteCustomer" class="w-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center active:bg-red-100 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
             </div>
         </div>
 
-        <nav class="fixed bottom-0 w-full max-w-[430px] bg-white/90 backdrop-blur-xl border-t border-slate-200 px-6 pt-3 pb-[var(--safe-bottom)] flex justify-between z-40">
-            <button @click="activeTab = 'A'" :class="['flex flex-col items-center gap-1', activeTab === 'A' ? 'text-indigo-600' : 'text-slate-300']">
-                <i class="fa-solid fa-map-location-dot text-xl"></i>
-                <span class="text-[10px] font-bold">街區日曆</span>
+        <nav class="fixed bottom-0 w-full max-w-[430px] bg-white/95 backdrop-blur-xl border-t border-slate-200 px-8 pt-3 pb-[var(--safe-bottom)] flex justify-between z-40">
+            <button @click="activeTab = 'A'" :class="['flex flex-col items-center gap-1 transition-all', activeTab === 'A' ? 'text-indigo-600 scale-110' : 'text-slate-300']">
+                <i class="fa-solid fa-calendar-check text-xl"></i>
+                <span class="text-[10px] font-bold">配送日曆</span>
             </button>
-            <button @click="activeTab = 'B'" :class="['flex flex-col items-center gap-1', activeTab === 'B' ? 'text-indigo-600' : 'text-slate-300']">
-                <i class="fa-solid fa-truck-ramp-box text-xl"></i>
+            <button @click="activeTab = 'B'" :class="['flex flex-col items-center gap-1 transition-all', activeTab === 'B' ? 'text-indigo-600 scale-110' : 'text-slate-300']">
+                <i class="fa-solid fa-clipboard-list text-xl"></i>
                 <span class="text-[10px] font-bold">準貨內容</span>
             </button>
-            <button @click="activeTab = 'C'" :class="['flex flex-col items-center gap-1', activeTab === 'C' ? 'text-indigo-600' : 'text-slate-300']">
-                <i class="fa-solid fa-users-gear text-xl"></i>
+            <button @click="activeTab = 'C'" :class="['flex flex-col items-center gap-1 transition-all', activeTab === 'C' ? 'text-indigo-600 scale-110' : 'text-slate-300']">
+                <i class="fa-solid fa-user-gear text-xl"></i>
                 <span class="text-[10px] font-bold">訂戶管理</span>
             </button>
         </nav>
@@ -199,19 +218,21 @@
                 const selectedBlock = ref('大埔');
                 const selectedCid = ref('');
                 const prepOffset = ref(0);
-                const currentRange = ref(1);
                 const showModal = ref(false);
 
                 const customers = ref([]);
                 const logs = reactive({});
 
                 const blocks = ['大埔', '中園街', '橫溪', '大同路', '恩主公', '大勇路', '市場', '長泰街', '復興路', '民生路'];
-                const plans = { 'A':'每天送', 'B':'週一到週五', 'C':'週二到週日', 'D':'週一+週三+週五', 'E':'週三+週五', 'F':'週二+週四', 'G':'週二到週五', 'H':'週六', 'J':'週六+週日' };
-                const tabTitles = { 'A': '街區配送日曆', 'B': '準貨量統計', 'C': '訂戶 CRM' };
+                const plans = { 
+                    'A':'每天送', 'B':'週一到週五', 'C':'週二到週日', 'D':'週一+週三+週五', 
+                    'E':'週三+週五', 'F':'週二+週四', 'G':'週二到週五', 'H':'週六', 
+                    'J':'週六+週日', 'K':'週一到週四' 
+                };
+                const tabTitles = { 'A': '街區配送日曆', 'B': '準貨量統計', 'C': '訂戶管理 CRM' };
 
                 const form = reactive({ id: null, name: '', block: '大埔', count: 1, plan: 'A', phone: '', note: '' });
 
-                // --- Firebase 同步 ---
                 onMounted(() => {
                     onSnapshot(collection(db, "customers"), snap => {
                         customers.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -226,11 +247,11 @@
                     });
                 });
 
-                // --- 核心邏輯：方案判定 ---
+                // --- 方案邏輯判定 ---
                 const isExpectedDay = (cid, dateKey) => {
                     const c = customers.value.find(x => x.id === cid);
                     if (!c) return false;
-                    const day = new Date(dateKey).getDay();
+                    const day = new Date(dateKey).getDay(); // 0(Sun) - 6(Sat)
                     const p = c.plan;
                     if (p === 'A') return true;
                     if (p === 'B') return day >= 1 && day <= 5;
@@ -241,42 +262,62 @@
                     if (p === 'G') return day >= 2 && day <= 5;
                     if (p === 'H') return day === 6;
                     if (p === 'J') return day === 0 || day === 6;
+                    if (p === 'K') return day >= 1 && day <= 4;
                     return false;
                 };
 
-                // --- 準貨清單計算 ---
-                const prepList = computed(() => {
-                    const targetDate = new Date();
-                    targetDate.setDate(targetDate.getDate() + prepOffset.value);
-                    const targetKey = targetDate.toISOString().split('T')[0];
-                    return customers.value.filter(c => isExpectedDay(c.id, targetKey));
-                });
-
-                const prepTotalCount = computed(() => prepList.value.reduce((sum, c) => sum + parseInt(c.count), 0));
-
-                // --- 街區過濾 ---
-                const filteredCustomers = computed(() => customers.value.filter(c => c.block === selectedBlock.value));
-                const currentCustomer = computed(() => customers.value.find(c => c.id === selectedCid.value));
-
-                // --- 狀態切換 ---
-                const toggleStatus = async (cid, dateKey) => {
+                // --- 閉環點擊邏輯 ---
+                const handleDayClick = async (cid, dateKey) => {
+                    const expected = isExpectedDay(cid, dateKey);
                     const current = logs[cid]?.[dateKey];
-                    let next = 'S'; // 已送
-                    if (current === 'S') next = 'L'; // 請假
-                    else if (current === 'L') next = 'F'; // 未送
-                    else if (current === 'F') next = null;
+                    
+                    let next = null;
+                    
+                    // 閉環切換邏輯
+                    // 邏輯：淡紫色(預設/Ready) -> 綠(Success) -> 黑(Leave) -> 紅(Fail) -> 循環
+                    if (!current) next = 'S'; // 如果是空格或淡紫，點了變綠色
+                    else if (current === 'S') next = 'L';
+                    else if (current === 'L') next = 'F';
+                    else next = null; // 回到預設狀態
 
                     const logId = `${cid}_${dateKey}`;
-                    if (next) await setDoc(doc(db, "delivery_logs", logId), { status: next });
-                    else await deleteDoc(doc(db, "delivery_logs", logId));
+                    if (next) {
+                        await setDoc(doc(db, "delivery_logs", logId), { status: next });
+                    } else {
+                        await deleteDoc(doc(db, "delivery_logs", logId));
+                        if(logs[cid]) delete logs[cid][dateKey];
+                    }
                 };
 
                 const getStatusClass = (cid, dateKey) => {
                     const s = logs[cid]?.[dateKey];
-                    return s === 'S' ? 'state-success' : s === 'L' ? 'state-leave' : s === 'F' ? 'state-fail' : '';
+                    if (s === 'S') return 'state-success';
+                    if (s === 'L') return 'state-leave';
+                    if (s === 'F') return 'state-fail';
+                    // 若無狀態，檢查是否符合方案，符合則染淡紫色
+                    if (isExpectedDay(cid, dateKey)) return 'state-ready is-expected-border';
+                    return 'bg-white';
                 };
 
-                // --- 工具函數 ---
+                // --- 準貨清單 (未來 5 天) ---
+                const prepList = computed(() => {
+                    const targetDate = new Date();
+                    targetDate.setDate(targetDate.getDate() + prepOffset.value);
+                    const targetKey = targetDate.toISOString().split('T')[0];
+                    // 過濾出：1. 方案應送 2. 且「沒有標記請假(L)」的訂戶
+                    return customers.value.filter(c => {
+                        const expected = isExpectedDay(c.id, targetKey);
+                        const status = logs[c.id]?.[targetKey];
+                        return expected && status !== 'L';
+                    });
+                });
+
+                const prepTotalCount = computed(() => prepList.value.reduce((sum, c) => sum + parseInt(c.count), 0));
+
+                const filteredCustomers = computed(() => customers.value.filter(c => c.block === selectedBlock.value));
+                const currentCustomer = computed(() => customers.value.find(c => c.id === selectedCid.value));
+
+                // 工具函數
                 const getPrepDateLabel = (offset) => {
                     const d = new Date(); d.setDate(d.getDate() + offset);
                     if (offset === 0) return '今天';
@@ -289,7 +330,6 @@
                     return d.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'short' });
                 };
 
-                // --- CRUD ---
                 const openEdit = (c) => {
                     if (c) Object.assign(form, c);
                     else Object.assign(form, { id: null, name: '', block: '大埔', count: 1, plan: 'A', phone: '', note: '' });
@@ -303,7 +343,7 @@
                 };
 
                 const deleteCustomer = async () => {
-                    if (confirm("刪除訂戶？")) {
+                    if (confirm("確定刪除此訂戶？")) {
                         await deleteDoc(doc(db, "customers", form.id));
                         showModal.value = false;
                     }
@@ -315,10 +355,10 @@
                     return successCount * currentCustomer.value.count * 30;
                 });
 
-                // 月曆生成
                 const renderedMonths = computed(() => {
                     const ms = []; const today = new Date();
-                    for (let i = 0; i < currentRange.value; i++) {
+                    // 顯示本月即可，或依需求調整
+                    for (let i = 0; i < 1; i++) {
                         const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
                         ms.push({ year: d.getFullYear(), month: d.getMonth(), days: generateDays(d.getFullYear(), d.getMonth()) });
                     }
@@ -339,10 +379,10 @@
 
                 return { 
                     activeTab, selectedBlock, selectedCid, customers, filteredCustomers, currentCustomer, 
-                    logs, toggleStatus, getStatusClass, isExpectedDay, blocks, plans, tabTitles,
+                    logs, handleDayClick, getStatusClass, isExpectedDay, blocks, plans, tabTitles,
                     prepOffset, prepList, prepTotalCount, getPrepDateLabel, getPrepDateFull,
                     showModal, form, openEdit, submitCustomer, deleteCustomer, currentMonthTotal,
-                    renderedMonths, currentRange
+                    renderedMonths
                 };
             }
         }).mount('#app');
