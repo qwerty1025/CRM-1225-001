@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Calculator</title>
+</head>
+<body>
+    <input type="text" id="display" readonly>
+    <div>
+        <button onclick="appendToDisplay('1')">1</button>
+        <button onclick="calculate()">=</button>
+    </div>
+    <h3>計算紀錄</h3>
+    <ul id="history"></ul>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  // 貼上你的 Firebase 配置
+  apiKey: "YOUR_API_KEY",
+  projectId: "YOUR_PROJECT_ID",
+  // ... 其他欄位
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.calculate = async () => {
+    const display = document.getElementById('display');
+    const result = eval(display.value); // 注意：實際開發建議用更安全的方式解析
+    const record = `${display.value} = ${result}`;
+    
+    // 將紀錄存入 Firebase
+    await addDoc(collection(db, "history"), {
+        content: record,
+        timestamp: new Date()
+    });
+    display.value = result;
+};
+
+// 即時監聽資料庫，顯示紀錄
+const q = query(collection(db, "history"), orderBy("timestamp", "desc"));
+onSnapshot(q, (snapshot) => {
+    const historyList = document.getElementById('history');
+    historyList.innerHTML = '';
+    snapshot.forEach(doc => {
+        const li = document.createElement('li');
+        li.textContent = doc.data().content;
+        historyList.appendChild(li);
+    });
+});
