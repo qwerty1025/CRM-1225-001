@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羊奶配送管理系統</title>
+    <title>羊奶配送系統 v3.0 - 雲端同步版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo",
             authDomain: "crm-ts-1225-001.firebaseapp.com",
@@ -23,8 +22,6 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-
-        // 將 DB 功能掛載到 Window 以便 Vue 使用
         window.db = db;
         window.dbRef = ref;
         window.dbSet = set;
@@ -32,114 +29,121 @@
         window.dbUpdate = update;
     </script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
+<body class="bg-slate-50 text-gray-800">
     <div id="app" class="min-h-screen flex flex-col">
         
-        <nav class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
-            <h1 class="text-xl font-bold flex items-center">
-                <span class="mr-2">🥛</span> 配送管理
+        <nav class="bg-indigo-900 text-white p-4 shadow-xl flex justify-between items-center sticky top-0 z-50">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <span>📊</span> 配送中心管理系統
             </h1>
-            <div class="space-x-2 text-sm">
-                <button @click="currentView = 'manager'" :class="{'bg-blue-800': currentView==='manager'}" class="px-3 py-1 rounded transition">經理(電腦)</button>
-                <button @click="currentView = 'delivery'" :class="{'bg-blue-800': currentView==='delivery'}" class="px-3 py-1 rounded transition">配送(手機)</button>
+            <div class="flex gap-2 text-sm">
+                <button @click="currentView = 'manager'" :class="currentView==='manager' ? 'bg-indigo-500 shadow-inner' : 'bg-indigo-800'" class="px-5 py-2 rounded-full transition">電腦版經理</button>
+                <button @click="currentView = 'delivery'" :class="currentView==='delivery' ? 'bg-emerald-600 shadow-inner' : 'bg-indigo-800'" class="px-5 py-2 rounded-full transition">手機配送員</button>
             </div>
         </nav>
 
-        <main class="flex-grow p-4 max-w-5xl mx-auto w-full">
+        <main class="flex-grow p-4 lg:p-8 max-w-7xl mx-auto w-full">
 
             <div v-if="currentView === 'manager'" class="space-y-6">
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <h2 class="text-lg font-bold mb-4 border-b pb-2">📅 資料生成 (2025/12 - 2026/01)</h2>
-                    <p class="text-sm text-gray-600 mb-4">將「每週設定」轉換為未來兩個月的每日配送單。注意：此操作會覆蓋現有資料。</p>
-                    <div class="flex gap-4">
-                        <button @click="generateData" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow flex items-center">
-                            <span v-if="loading">處理中...</span>
-                            <span v-else>生成配送資料</span>
-                        </button>
+                
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex-grow">
+                            <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2 mb-2">
+                                🔗 Google Sheets 資料串接
+                            </h2>
+                            <input type="text" v-model="sheetUrl" 
+                                   placeholder="在此貼上 Google Sheets 發佈的 CSV 連結..."
+                                   class="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button @click="syncFromSheet" :disabled="loading" 
+                                    class="bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 disabled:bg-slate-400 transition shadow-md flex items-center gap-2">
+                                <span v-if="loading" class="animate-spin">🌀</span>
+                                {{ loading ? '同步中' : '立即同步資料' }}
+                            </button>
+                        </div>
                     </div>
+                    <p class="text-[10px] text-slate-400 mt-2 italic">* 格式需符合：順序, 名稱, 區域, 週一(5), 週二(5)...週日(5)</p>
                 </div>
 
-                <div class="bg-white p-6 rounded-lg shadow">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold">📦 每日備貨統計</h2>
-                        <input type="date" v-model="selectedDate" class="border p-1 rounded">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                        <h2 class="font-bold text-slate-700">📋 Firebase 客戶即時清單 ({{ sortedCustomers.length }} 筆)</h2>
+                        <button @click="generateDailyLogs" class="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 transition shadow">
+                            📅 產生 12月/1月 配送單
+                        </button>
                     </div>
-                    
-                    <div v-if="dailyStats" class="grid grid-cols-5 gap-2 text-center">
-                        <div class="bg-gray-50 p-3 rounded border">
-                            <div class="text-xs text-gray-500">原味</div>
-                            <div class="text-2xl font-bold text-blue-600">{{ dailyStats.original }}</div>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded border">
-                            <div class="text-xs text-gray-500">甜味</div>
-                            <div class="text-2xl font-bold text-pink-500">{{ dailyStats.sweet }}</div>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded border">
-                            <div class="text-xs text-gray-500">巧克力</div>
-                            <div class="text-2xl font-bold text-amber-700">{{ dailyStats.choco }}</div>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded border">
-                            <div class="text-xs text-gray-500">草莓</div>
-                            <div class="text-2xl font-bold text-red-400">{{ dailyStats.strawberry }}</div>
-                        </div>
-                        <div class="bg-gray-50 p-3 rounded border">
-                            <div class="text-xs text-gray-500">黑糖</div>
-                            <div class="text-2xl font-bold text-yellow-600">{{ dailyStats.brown }}</div>
-                        </div>
+                    <div class="overflow-x-auto overflow-y-auto max-h-[500px]">
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead class="bg-slate-100 text-slate-600 sticky top-0 z-10">
+                                <tr>
+                                    <th class="p-3 border-b">順序</th>
+                                    <th class="p-3 border-b">姓名</th>
+                                    <th class="p-3 border-b">區域</th>
+                                    <th v-for="day in ['一','二','三','四','五','六','日']" :key="day" class="p-3 border-b text-center border-l bg-slate-50/50">{{day}}</th>
+                                    <th class="p-3 border-b">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="cust in sortedCustomers" :key="cust.id" class="hover:bg-indigo-50 transition border-b group">
+                                    <td class="p-3 font-mono text-slate-400 text-xs">{{ cust.order }}</td>
+                                    <td class="p-3 font-bold text-slate-700">{{ cust.name }}</td>
+                                    <td class="p-3 text-slate-500">{{ cust.area }}</td>
+                                    <td v-for="dIdx in 7" :key="dIdx" class="p-3 text-center border-l">
+                                        <span v-if="getDayTotal(cust.pattern, dIdx-1) > 0" class="inline-block w-6 h-6 leading-6 rounded-full bg-indigo-100 text-indigo-600 font-bold text-[10px]">
+                                            {{ getDayTotal(cust.pattern, dIdx-1) }}
+                                        </span>
+                                        <span v-else class="text-slate-200">-</span>
+                                    </td>
+                                    <td class="p-3">
+                                        <button @click="deleteCustomer(cust.id)" class="text-rose-400 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition">刪除</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div v-else class="text-center text-gray-500 py-4">無資料</div>
                 </div>
             </div>
 
-            <div v-if="currentView === 'delivery'" class="space-y-4">
-                <div class="flex items-center justify-between bg-white p-3 rounded shadow sticky top-16 z-40">
-                    <button @click="changeDate(-1)" class="p-2 bg-gray-200 rounded-full">◀</button>
+            <div v-if="currentView === 'delivery'" class="space-y-4 max-w-md mx-auto">
+                <div class="sticky top-20 z-40 bg-white shadow-lg rounded-2xl p-4 flex justify-between items-center border border-indigo-100">
+                    <button @click="changeDate(-1)" class="w-10 h-10 flex items-center justify-center bg-slate-100 rounded-full">◀</button>
                     <div class="text-center">
-                        <div class="font-bold text-lg">{{ formatDate(selectedDate) }}</div>
-                        <div class="text-xs text-gray-500">{{ getWeekDay(selectedDate) }}</div>
+                        <div class="text-xs text-indigo-400 font-bold">{{ getWeekDay(selectedDate) }}</div>
+                        <div class="font-bold text-xl text-slate-700">{{ selectedDate.substring(5) }}</div>
                     </div>
-                    <button @click="changeDate(1)" class="p-2 bg-gray-200 rounded-full">▶</button>
+                    <button @click="changeDate(1)" class="w-10 h-10 flex items-center justify-center bg-slate-100 rounded-full">▶</button>
                 </div>
 
-                <div v-if="sortedDailyList.length > 0" class="space-y-3 pb-20">
+                <div v-if="sortedDailyList.length > 0" class="space-y-3 pb-24">
                     <div v-for="item in sortedDailyList" :key="item.id" 
-                         class="bg-white rounded-lg shadow p-4 border-l-4 transition-all"
-                         :class="item.status === 'delivered' ? 'border-green-500 opacity-70' : 'border-blue-500'">
+                         class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex items-center gap-4 transition-all"
+                         :class="item.status === 'delivered' ? 'bg-slate-50 border-transparent opacity-60' : ''">
                         
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <span class="bg-gray-200 text-xs px-1 rounded">{{ item.order }}</span>
-                                    <span class="font-bold text-lg">{{ item.name }}</span>
-                                </div>
-                                <div class="text-xs text-gray-500">{{ item.area }}</div>
+                        <div class="flex-grow">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-[10px] bg-slate-700 text-white px-1.5 rounded font-mono">{{ item.order }}</span>
+                                <span class="font-bold text-lg">{{ item.name }}</span>
                             </div>
-                            <button @click="toggleStatus(item)" 
-                                    class="w-10 h-10 rounded-full flex items-center justify-center text-xl transition"
-                                    :class="item.status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'">
-                                {{ item.status === 'delivered' ? '✓' : '○' }}
-                            </button>
-                        </div>
-
-                        <div class="flex flex-wrap gap-2 mb-3 text-sm">
-                            <span v-if="item.items.original" class="bg-blue-50 text-blue-700 px-2 py-1 rounded">原味: {{item.items.original}}</span>
-                            <span v-if="item.items.sweet" class="bg-pink-50 text-pink-700 px-2 py-1 rounded">甜味: {{item.items.sweet}}</span>
-                            <span v-if="item.items.choco" class="bg-amber-50 text-amber-800 px-2 py-1 rounded">巧克: {{item.items.choco}}</span>
-                            <span v-if="item.items.strawberry" class="bg-red-50 text-red-700 px-2 py-1 rounded">草莓: {{item.items.strawberry}}</span>
-                            <span v-if="item.items.brown" class="bg-yellow-50 text-yellow-700 px-2 py-1 rounded">黑糖: {{item.items.brown}}</span>
-                        </div>
-
-                        <div class="bg-gray-50 p-2 rounded">
-                            <label class="text-xs text-gray-400 block mb-1">個別消息 / 備註</label>
+                            <div class="flex gap-1 mb-2">
+                                <span v-for="(val, key) in item.items" :key="key">
+                                    <span v-if="val > 0" class="text-[11px] px-2 py-0.5 rounded-md" :class="getFlavorClass(key)">
+                                        {{ getFlavorName(key) }}{{val}}
+                                    </span>
+                                </span>
+                            </div>
                             <input type="text" v-model.lazy="item.note" @change="updateNote(item)"
-                                   placeholder="例如: 門口沒開、改明天..." 
-                                   class="w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm p-1">
+                                   placeholder="點擊輸入消息..." 
+                                   class="w-full text-xs bg-slate-50 border-b border-transparent focus:border-indigo-400 outline-none p-1">
                         </div>
-                    </div>
-                </div>
 
-                <div v-else class="text-center text-gray-500 mt-10">
-                    今日無配送資料 💤
+                        <button @click="toggleStatus(item)" 
+                                class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-sm border-2 transition-all"
+                                :class="item.status === 'delivered' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-200 border-slate-100'">
+                            {{ item.status === 'delivered' ? '✓' : '○' }}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -147,163 +151,154 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, watch, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted } = Vue;
 
         createApp({
             setup() {
-                const currentView = ref('delivery'); // 預設手機版
+                const currentView = ref('manager');
                 const selectedDate = ref(new Date().toISOString().split('T')[0]);
-                const dailyData = ref({});
+                const sheetUrl = ref(''); // 存儲 Google Sheet CSV 網址
                 const loading = ref(false);
+                const customers = ref({});
+                const dailyData = ref({});
 
-                // 模擬試算表資料 (部分範例，實作時應完整填入或做 CSV 上傳功能)
-                // 這裡展示如何將試算表結構轉換為程式邏輯
-                const rawSheetData = [
-                    // 格式: [週期, 次序, 名稱, 街區, 週一(5), 週二(5)... 週日(5)]
-                    // 為簡化，此處僅放幾筆範例資料
-                    { name: "大埔姑婆", order: 1, area: "大埔", pattern: [1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1] },
-                    { name: "詹_豬肉燈", order: 2, area: "大埔", pattern: [0,0,0,0,0, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2] }, // (二)~(日)
-                ];
-
-                // 監聽日期變動，讀取 Firebase
-                watch(selectedDate, (newDate) => {
-                    loadDateData(newDate);
-                });
-
-                function loadDateData(dateStr) {
-                    if(!window.dbRef) return;
-                    const dateRef = window.dbRef(window.db, `daily_operations/${dateStr}`);
-                    window.dbOnValue(dateRef, (snapshot) => {
-                        const data = snapshot.val();
-                        dailyData.value = data || {};
+                // --- 初始化：即時監聽 Firebase ---
+                onMounted(() => {
+                    // 1. 監聽客戶母檔
+                    const custRef = window.dbRef(window.db, 'customers');
+                    window.dbOnValue(custRef, (snapshot) => {
+                        customers.value = snapshot.val() || {};
                     });
-                }
 
-                // 計算屬性：每日統計 (經理用)
-                const dailyStats = computed(() => {
-                    const stats = { original: 0, sweet: 0, choco: 0, strawberry: 0, brown: 0 };
-                    Object.values(dailyData.value).forEach(cust => {
-                        if (cust.items) {
-                            stats.original += parseInt(cust.items.original || 0);
-                            stats.sweet += parseInt(cust.items.sweet || 0);
-                            stats.choco += parseInt(cust.items.choco || 0);
-                            stats.strawberry += parseInt(cust.items.strawberry || 0);
-                            stats.brown += parseInt(cust.items.brown || 0);
-                        }
-                    });
-                    return stats;
+                    // 2. 監聽當前配送紀錄
+                    loadDailyData(selectedDate.value);
                 });
 
-                // 計算屬性：排序後的配送清單 (配送員用)
-                const sortedDailyList = computed(() => {
-                    const list = Object.entries(dailyData.value).map(([key, val]) => ({
-                        id: key,
-                        ...val
-                    }));
-                    // 依 order 排序
-                    return list.sort((a, b) => a.order - b.order);
-                });
-
-                // 功能：生成 2025/12 - 2026/01 資料
-                async function generateData() {
-                    if(!confirm("確定要重新生成資料嗎？這將寫入資料庫。")) return;
+                // --- 經理功能：Google Sheet 同步 ---
+                async function syncFromSheet() {
+                    if (!sheetUrl.value.includes('csv')) {
+                        alert("請確認連結是否為「發佈為 CSV」格式");
+                        return;
+                    }
                     loading.value = true;
-                    
-                    const updates = {};
-                    const startDate = new Date("2025-12-01");
-                    const endDate = new Date("2026-01-31");
-
-                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                        const dateStr = d.toISOString().split('T')[0];
-                        // 0=Sun, 1=Mon... 但 Sheet 資料通常 0=Mon or mapped accordingly.
-                        // 假設 Sheet pattern 是 Mon(0-4), Tue(5-9)... Sun(30-34)
-                        let jsDay = d.getDay(); // 0(Sun) - 6(Sat)
-                        // 轉換為我們 pattern 的 index: Mon=0, ..., Sun=6
-                        let patternDayIndex = jsDay === 0 ? 6 : jsDay - 1; 
-
-                        // 遍歷所有客戶
-                        // *註：實際應用應包含完整 78 位客戶資料，此處以 rawSheetData 示範
-                        rawSheetData.forEach((cust, idx) => {
-                            const startIdx = patternDayIndex * 5;
-                            const items = {
-                                original: cust.pattern[startIdx],
-                                sweet: cust.pattern[startIdx+1],
-                                choco: cust.pattern[startIdx+2],
-                                strawberry: cust.pattern[startIdx+3],
-                                brown: cust.pattern[startIdx+4]
-                            };
-
-                            // 只有當天有數量才寫入
-                            const total = Object.values(items).reduce((a,b)=>a+b, 0);
-                            if (total > 0) {
-                                updates[`daily_operations/${dateStr}/cust_${idx}`] = {
-                                    name: cust.name,
-                                    order: cust.order,
-                                    area: cust.area,
-                                    items: items,
-                                    status: 'pending',
-                                    note: ''
+                    try {
+                        const response = await fetch(sheetUrl.value);
+                        const csvText = await response.text();
+                        const rows = csvText.split('\n').slice(1); // 跳過標題列
+                        
+                        const updates = {};
+                        rows.forEach((row, index) => {
+                            const cols = row.split(',').map(c => c.trim());
+                            if (cols.length >= 38) {
+                                const id = 'cust_' + (cols[0].padStart(3, '0')); // 以序號為 ID
+                                updates[`customers/${id}`] = {
+                                    order: parseInt(cols[0]),
+                                    name: cols[1],
+                                    area: cols[2],
+                                    pattern: cols.slice(3, 38).map(v => parseInt(v) || 0)
                                 };
                             }
                         });
-                    }
 
-                    try {
                         await window.dbUpdate(window.dbRef(window.db), updates);
-                        alert("2025/12 及 2026/01 資料生成完畢！");
+                        alert("同步成功！資料已即時反應在下方表格。");
                     } catch (e) {
-                        alert("錯誤：" + e.message);
+                        alert("同步失敗：" + e.message);
                     }
                     loading.value = false;
                 }
 
-                // 功能：更新狀態
-                function toggleStatus(item) {
-                    const newStatus = item.status === 'delivered' ? 'pending' : 'delivered';
+                // --- 經理功能：產生配送單 ---
+                async function generateDailyLogs() {
+                    loading.value = true;
                     const updates = {};
-                    updates[`daily_operations/${selectedDate.value}/${item.id}/status`] = newStatus;
-                    window.dbUpdate(window.dbRef(window.db), updates);
+                    const startDate = new Date("2025-12-01");
+                    const endDate = new Date("2026-01-31");
+                    const allCusts = Object.entries(customers.value);
+
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                        const dStr = d.toISOString().split('T')[0];
+                        let jsDay = d.getDay(); 
+                        let pIdx = jsDay === 0 ? 6 : jsDay - 1; 
+
+                        allCusts.forEach(([id, data]) => {
+                            const start = pIdx * 5;
+                            const items = {
+                                original: data.pattern[start],
+                                sweet: data.pattern[start+1],
+                                choco: data.pattern[start+2],
+                                strawberry: data.pattern[start+3],
+                                brown: data.pattern[start+4]
+                            };
+                            if (Object.values(items).reduce((a,b)=>a+b,0) > 0) {
+                                updates[`daily_operations/${dStr}/${id}`] = {
+                                    name: data.name, order: data.order, area: data.area,
+                                    items: items, status: 'pending', note: ''
+                                };
+                            }
+                        });
+                    }
+                    await window.dbUpdate(window.dbRef(window.db), updates);
+                    loading.value = false;
+                    alert("12月與1月配送單已產生成功！");
                 }
 
-                // 功能：更新備註
-                function updateNote(item) {
-                    const updates = {};
-                    updates[`daily_operations/${selectedDate.value}/${item.id}/note`] = item.note;
-                    window.dbUpdate(window.dbRef(window.db), updates);
+                // --- 配送員邏輯 ---
+                function loadDailyData(date) {
+                    const dRef = window.dbRef(window.db, `daily_operations/${date}`);
+                    window.dbOnValue(dRef, (snapshot) => {
+                        dailyData.value = snapshot.val() || {};
+                    });
                 }
 
-                // 輔助功能
-                function formatDate(str) {
-                    return str; // 可格式化為 12月25日
-                }
-                function getWeekDay(dateStr) {
-                    const days = ['週日','週一','週二','週三','週四','週五','週六'];
-                    return days[new Date(dateStr).getDay()];
-                }
-                function changeDate(offset) {
-                    const d = new Date(selectedDate.value);
-                    d.setDate(d.getDate() + offset);
-                    selectedDate.value = d.toISOString().split('T')[0];
-                }
-
-                onMounted(() => {
-                    // 初始化載入今天資料
-                    loadDateData(selectedDate.value);
+                // --- 輔助工具 ---
+                const sortedCustomers = computed(() => {
+                    return Object.entries(customers.value)
+                        .map(([id, data]) => ({ id, ...data }))
+                        .sort((a,b) => a.order - b.order);
                 });
 
+                const sortedDailyList = computed(() => {
+                    return Object.entries(dailyData.value)
+                        .map(([id, data]) => ({ id, ...data }))
+                        .sort((a,b) => a.order - b.order);
+                });
+
+                const getDayTotal = (pattern, dayIdx) => {
+                    const start = dayIdx * 5;
+                    return pattern.slice(start, start + 5).reduce((a,b)=>a+b, 0);
+                };
+
+                const toggleStatus = (item) => {
+                    const newStatus = item.status === 'delivered' ? 'pending' : 'delivered';
+                    window.dbUpdate(window.dbRef(window.db, `daily_operations/${selectedDate.value}/${item.id}`), { status: newStatus });
+                };
+
+                const updateNote = (item) => {
+                    window.dbUpdate(window.dbRef(window.db, `daily_operations/${selectedDate.value}/${item.id}`), { note: item.note });
+                };
+
+                const changeDate = (n) => {
+                    const d = new Date(selectedDate.value);
+                    d.setDate(d.getDate() + n);
+                    selectedDate.value = d.toISOString().split('T')[0];
+                    loadDailyData(selectedDate.value);
+                };
+
+                const getFlavorName = (k) => ({ original:'原', sweet:'甜', choco:'巧', strawberry:'莓', brown:'黑' }[k]);
+                const getFlavorClass = (k) => ({
+                    original: 'bg-blue-100 text-blue-700',
+                    sweet: 'bg-pink-100 text-pink-700',
+                    choco: 'bg-amber-100 text-amber-800',
+                    strawberry: 'bg-red-100 text-red-700',
+                    brown: 'bg-yellow-100 text-yellow-800'
+                }[k]);
+                const getWeekDay = (d) => ['週日','週一','週二','週三','週四','週五','週六'][new Date(d).getDay()];
+
                 return {
-                    currentView,
-                    selectedDate,
-                    dailyData,
-                    dailyStats,
-                    sortedDailyList,
-                    loading,
-                    generateData,
-                    toggleStatus,
-                    updateNote,
-                    formatDate,
-                    getWeekDay,
-                    changeDate
+                    currentView, selectedDate, sheetUrl, loading, customers, sortedCustomers,
+                    sortedDailyList, syncFromSheet, generateDailyLogs, getDayTotal,
+                    toggleStatus, updateNote, changeDate, getFlavorName, getFlavorClass, getWeekDay
                 };
             }
         }).mount('#app');
