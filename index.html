@@ -1,426 +1,312 @@
-<div id="app" class="flex flex-col mx-auto bg-[#F2F2F7] min-h-screen text-slate-900 selection:bg-indigo-100" style="max-width: 430px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-
-    <style>
-        /* 安全區域與動態島適配 */
-        :root { 
-            --safe-top: env(safe-area-inset-top, 44px); 
-            --safe-bottom: env(safe-area-inset-bottom, 34px); 
-        }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* 主視窗捲動區：扣除 Header(100px) 與 Footer(85px) */
-        .ios-main-area { 
-            height: calc(100vh - 185px); 
-            overflow-y: scroll; 
-            -webkit-overflow-scrolling: touch; 
-            padding-bottom: 50px;
-        }
-        
-        /* 狀態色彩 - 高對比度 */
-        .state-ready { background-color: #E5E7EB !important; color: #6B7280; border: 1.5px dashed #9CA3AF !important; } 
-        .state-active { background-color: #EEF2FF !important; color: #4338CA; border: 1.5px solid #818CF8 !important; } 
-        .state-success { background-color: #34C759 !important; color: white; border: none !important; box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3); } 
-        .state-leave { background-color: #1C1C1E !important; color: white; border: none !important; }   
-        .state-fail { background-color: #FF3B30 !important; color: white; border: none !important; }    
-
-        /* 日曆格子 (加大觸控區) */
-        .day-cell { 
-            aspect-ratio: 1/1.15; 
-            border-radius: 14px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            font-weight: 800; 
-            font-size: 15px; 
-            transition: transform 0.1s; 
-            position: relative;
-        }
-        .day-cell:active { transform: scale(0.9); }
-        
-        .flavor-tag { 
-            font-size: 8px; 
-            line-height: 1.2; 
-            margin-top: 2px; 
-            font-weight: 900; 
-            background: rgba(255,255,255,0.8); 
-            padding: 1px 3px; 
-            border-radius: 4px;
-            color: inherit;
-        }
-        
-        /* 底部導覽列 (iOS 風格) */
-        .bottom-nav { 
-            position: fixed; 
-            bottom: 0; 
-            width: 100%; 
-            max-width: 430px; 
-            background: rgba(255, 255, 255, 0.85); 
-            backdrop-filter: saturate(180%) blur(20px); 
-            border-top: 0.5px solid rgba(0,0,0,0.1); 
-            padding-bottom: var(--safe-bottom); 
-            z-index: 50; 
-        }
-
-        /* 抽屜動畫 */
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.32, 0.72, 0, 1); }
-    </style>
-
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>羊奶配送管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-slate-200/60 px-6 pt-12 pb-3 shadow-sm transition-all duration-200">
-        <div class="flex justify-between items-end">
-            <div>
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Offline Mode</p>
-                <h1 class="text-2xl font-black text-slate-900 tracking-tight leading-none">配送<span class="text-indigo-600">Magic</span></h1>
-            </div>
-            <button v-if="activeTab === 'C'" @click="openEdit(null)" class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform">
-                <i class="fas fa-plus"></i>
-            </button>
-            <div v-else class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                <i class="fas fa-user-circle text-lg"></i>
-            </div>
-        </div>
-    </header>
+        // Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo",
+            authDomain: "crm-ts-1225-001.firebaseapp.com",
+            databaseURL: "https://crm-ts-1225-001-default-rtdb.firebaseio.com",
+            projectId: "crm-ts-1225-001",
+            storageBucket: "crm-ts-1225-001.firebasestorage.app",
+            messagingSenderId: "925760221722",
+            appId: "1:925760221722:web:1aeda0b82f1f16b8dcd7a3"
+        };
 
-    <main class="ios-main-area p-4 space-y-6">
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // 將 DB 功能掛載到 Window 以便 Vue 使用
+        window.db = db;
+        window.dbRef = ref;
+        window.dbSet = set;
+        window.dbOnValue = onValue;
+        window.dbUpdate = update;
+    </script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+    <div id="app" class="min-h-screen flex flex-col">
         
-        <div v-if="activeTab === 'A'" class="space-y-5">
-            <div class="flex overflow-x-auto gap-2 no-scrollbar py-1 pl-1">
-                <button v-for="b in blocks" @click="selectedBlock = b"
-                    :class="['whitespace-nowrap px-5 py-2.5 rounded-full text-[13px] font-bold transition-all', selectedBlock === b ? 'bg-slate-900 text-white shadow-md transform scale-105' : 'bg-white text-slate-400 border border-slate-200/80']">
-                    {{ b }}
-                </button>
+        <nav class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
+            <h1 class="text-xl font-bold flex items-center">
+                <span class="mr-2">🥛</span> 配送管理
+            </h1>
+            <div class="space-x-2 text-sm">
+                <button @click="currentView = 'manager'" :class="{'bg-blue-800': currentView==='manager'}" class="px-3 py-1 rounded transition">經理(電腦)</button>
+                <button @click="currentView = 'delivery'" :class="{'bg-blue-800': currentView==='delivery'}" class="px-3 py-1 rounded transition">配送(手機)</button>
             </div>
+        </nav>
 
-            <div class="flex overflow-x-auto gap-3 no-scrollbar pb-2 pl-1 snap-x">
-                <button v-for="c in filteredCustomers" @click="selectedCid = c.id"
-                    :class="['snap-center whitespace-nowrap px-6 py-4 rounded-[1.2rem] text-sm font-bold border-2 transition-all flex-shrink-0', selectedCid === c.id ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md ring-2 ring-indigo-200' : 'border-transparent bg-white text-slate-500 shadow-sm']">
-                    {{ c.name }}
-                </button>
-            </div>
+        <main class="flex-grow p-4 max-w-5xl mx-auto w-full">
 
-            <div v-if="currentCustomer" class="animate-fade-in space-y-4">
-                <div class="bg-indigo-600 p-6 rounded-[2rem] text-white shadow-xl shadow-indigo-200/50 flex justify-between items-end relative overflow-hidden">
-                    <div class="relative z-10">
-                        <p class="text-[10px] font-bold opacity-60 uppercase mb-1 tracking-wider">{{ currentCustomer.block }} · {{ currentCustomer.plan }}</p>
-                        <h2 class="text-3xl font-black tracking-tight mb-1">{{ currentCustomer.name }}</h2>
-                        <div class="flex gap-2 text-xs opacity-90 font-medium">
-                            <span class="bg-white/20 px-2 py-0.5 rounded">{{ currentCustomer.rate }}元/瓶</span>
+            <div v-if="currentView === 'manager'" class="space-y-6">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h2 class="text-lg font-bold mb-4 border-b pb-2">📅 資料生成 (2025/12 - 2026/01)</h2>
+                    <p class="text-sm text-gray-600 mb-4">將「每週設定」轉換為未來兩個月的每日配送單。注意：此操作會覆蓋現有資料。</p>
+                    <div class="flex gap-4">
+                        <button @click="generateData" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow flex items-center">
+                            <span v-if="loading">處理中...</span>
+                            <span v-else>生成配送資料</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold">📦 每日備貨統計</h2>
+                        <input type="date" v-model="selectedDate" class="border p-1 rounded">
+                    </div>
+                    
+                    <div v-if="dailyStats" class="grid grid-cols-5 gap-2 text-center">
+                        <div class="bg-gray-50 p-3 rounded border">
+                            <div class="text-xs text-gray-500">原味</div>
+                            <div class="text-2xl font-bold text-blue-600">{{ dailyStats.original }}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded border">
+                            <div class="text-xs text-gray-500">甜味</div>
+                            <div class="text-2xl font-bold text-pink-500">{{ dailyStats.sweet }}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded border">
+                            <div class="text-xs text-gray-500">巧克力</div>
+                            <div class="text-2xl font-bold text-amber-700">{{ dailyStats.choco }}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded border">
+                            <div class="text-xs text-gray-500">草莓</div>
+                            <div class="text-2xl font-bold text-red-400">{{ dailyStats.strawberry }}</div>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded border">
+                            <div class="text-xs text-gray-500">黑糖</div>
+                            <div class="text-2xl font-bold text-yellow-600">{{ dailyStats.brown }}</div>
                         </div>
                     </div>
-                    <div class="text-right z-10">
-                        <p class="text-[10px] font-bold opacity-60 uppercase">本月累計</p>
-                        <p class="text-3xl font-black text-emerald-300 tracking-tighter">${{ currentMonthTotal }}</p>
-                    </div>
-                    <i class="fa-solid fa-box-open absolute -right-6 -bottom-6 text-8xl opacity-10 rotate-12"></i>
-                </div>
-
-                <div class="flex items-center justify-between px-4">
-                    <button @click="changeMonth(-1)" class="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm active:bg-slate-50 text-slate-400"><i class="fa-solid fa-chevron-left"></i></button>
-                    <span class="text-lg font-black text-slate-700 tracking-tight">{{ viewMonthLabel }}</span>
-                    <button @click="changeMonth(1)" class="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm active:bg-slate-50 text-slate-400"><i class="fa-solid fa-chevron-right"></i></button>
-                </div>
-
-                <div class="bg-white rounded-[2rem] p-4 shadow-sm border border-slate-100/50">
-                    <div class="grid grid-cols-7 gap-2">
-                        <div v-for="d in ['一','二','三','四','五','六','日']" class="text-center text-[11px] font-black text-slate-300 mb-2">{{ d }}</div>
-                        <div v-for="day in calendarDays" :key="day.dateKey" 
-                            @click="day.date && toggleStatus(selectedCid, day.dateKey)"
-                            :class="['day-cell', day.date ? 'bg-slate-50' : 'opacity-0 pointer-events-none', getStatusClass(selectedCid, day.dateKey)]">
-                            <span class="mb-0.5">{{ day.date }}</span>
-                            <div v-if="day.date && isExpectedDay(selectedCid, day.dateKey)" class="flavor-tag">
-                                {{ getFlavorByWeekday(selectedCid, day.dateKey) }}
-                            </div>
-                            <i v-if="logs[selectedCid]?.[day.dateKey] === 'L'" class="fa-solid fa-xmark absolute text-white/30 text-2xl"></i>
-                            <i v-if="logs[selectedCid]?.[day.dateKey] === 'F'" class="fa-solid fa-triangle-exclamation absolute text-white/30 text-lg top-1 right-1"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="activeTab === 'B'" class="p-2 space-y-6 animate-fade-in">
-            <div class="flex overflow-x-auto gap-2 no-scrollbar py-1 px-2">
-                <button v-for="n in 10" @click="prepOffset = n-1"
-                    :class="['whitespace-nowrap px-5 py-3 rounded-2xl font-bold text-xs transition-all shadow-sm', prepOffset === n-1 ? 'bg-slate-900 text-white transform scale-105' : 'bg-white text-slate-400 border border-slate-100']">
-                    {{ getPrepDateLabel(n-1) }}
-                </button>
-            </div>
-            
-            <div class="mx-2 bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
-                <div class="relative z-10 text-center">
-                    <h3 class="text-xs font-black opacity-50 mb-3 uppercase tracking-[0.2em]">{{ getPrepDateFull(prepOffset) }} 全區備貨</h3>
-                    <p class="text-7xl font-black tracking-tighter">{{ prepTotalCount }}<span class="text-2xl font-medium opacity-40 ml-1">瓶</span></p>
+                    <div v-else class="text-center text-gray-500 py-4">無資料</div>
                 </div>
             </div>
 
-            <div class="mx-2 grid grid-cols-2 gap-3">
-                <div v-for="(count, f) in prepSummary" :key="f" v-show="count > 0" class="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm flex flex-col justify-between h-32">
-                    <div class="text-xs font-black text-slate-400 uppercase tracking-wider">{{ f }}</div>
-                    <div class="text-4xl font-black text-slate-800 self-end">{{ count }}</div>
-                </div>
-            </div>
-        </div>
-
-        <div v-if="activeTab === 'C'" class="p-2 space-y-3 animate-fade-in">
-            <div class="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm mb-4 mx-2">
-                 <button @click="openEdit(null)" class="w-full py-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 font-black text-sm active:bg-slate-100 transition-colors">
-                    + 手動新增訂戶
-                </button>
-            </div>
-
-            <div v-for="c in customers" @click="openEdit(c)" class="mx-2 bg-white p-5 rounded-[2rem] border border-slate-100 flex justify-between items-center shadow-sm active:scale-[0.98] transition-transform">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 text-xl font-black shadow-inner">
-                        {{ c.name.charAt(0) }}
+            <div v-if="currentView === 'delivery'" class="space-y-4">
+                <div class="flex items-center justify-between bg-white p-3 rounded shadow sticky top-16 z-40">
+                    <button @click="changeDate(-1)" class="p-2 bg-gray-200 rounded-full">◀</button>
+                    <div class="text-center">
+                        <div class="font-bold text-lg">{{ formatDate(selectedDate) }}</div>
+                        <div class="text-xs text-gray-500">{{ getWeekDay(selectedDate) }}</div>
                     </div>
-                    <div>
-                        <div class="font-black text-lg text-slate-800 leading-none mb-1">{{ c.name }}</div>
-                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide bg-slate-50 px-2 py-0.5 rounded-md inline-block">{{ c.block }}</div>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <div class="text-lg font-black text-slate-700">{{ c.count }}<span class="text-xs font-normal text-slate-400">瓶</span></div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm" style="height: 100vh;">
-        <div class="bg-white w-full rounded-t-[2.5rem] p-8 pb-24 space-y-6 max-h-[90vh] overflow-y-auto animate-slide-up shadow-2xl">
-            <div class="flex justify-between items-center sticky top-0 bg-white pb-2 z-10">
-                <h2 class="text-2xl font-black text-slate-800">訂戶設定</h2>
-                <button @click="showModal = false" class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="col-span-2">
-                        <label class="text-[10px] font-black text-slate-400 ml-1 mb-1 block uppercase">姓名</label>
-                        <input v-model="form.name" type="text" class="w-full bg-slate-50 border-0 p-4 rounded-2xl font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 ml-1 mb-1 block uppercase">街區</label>
-                        <select v-model="form.block" class="w-full bg-slate-50 border-0 p-4 rounded-2xl font-bold ring-1 ring-slate-200 appearance-none">
-                            <option v-for="b in blocks" :value="b">{{ b }}</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 ml-1 mb-1 block uppercase">費率</label>
-                        <select v-model="form.rate" class="w-full bg-slate-50 border-0 p-4 rounded-2xl font-bold ring-1 ring-slate-200 appearance-none">
-                            <option :value="30">30 元</option>
-                            <option :value="32">32 元</option>
-                            <option :value="35">35 元</option>
-                        </select>
-                    </div>
+                    <button @click="changeDate(1)" class="p-2 bg-gray-200 rounded-full">▶</button>
                 </div>
 
-                <div class="bg-slate-50 p-5 rounded-[2rem] border border-slate-100">
-                    <h3 class="text-xs font-black text-slate-400 mb-4 uppercase tracking-widest flex items-center gap-2"><i class="fa-solid fa-calendar-week"></i> 每週配送配置</h3>
-                    <div class="space-y-3">
-                        <div v-for="(day, idx) in ['一','二','三','四','五','六','日']" class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-xs font-black text-indigo-600">星期{{ day }}</span>
-                            </div>
-                            <div class="grid grid-cols-5 gap-2">
-                                <div v-for="f in flavors" :key="f" class="text-center">
-                                    <div class="text-[8px] font-bold text-slate-300 mb-1">{{ f[0] }}</div>
-                                    <input type="number" v-model.number="form.weeklySchedule[idx][f]" class="w-full text-center bg-slate-50 border-0 rounded-lg font-black text-sm p-1.5 focus:bg-indigo-50 focus:text-indigo-600 outline-none transition-colors" placeholder="0">
+                <div v-if="sortedDailyList.length > 0" class="space-y-3 pb-20">
+                    <div v-for="item in sortedDailyList" :key="item.id" 
+                         class="bg-white rounded-lg shadow p-4 border-l-4 transition-all"
+                         :class="item.status === 'delivered' ? 'border-green-500 opacity-70' : 'border-blue-500'">
+                        
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="bg-gray-200 text-xs px-1 rounded">{{ item.order }}</span>
+                                    <span class="font-bold text-lg">{{ item.name }}</span>
                                 </div>
+                                <div class="text-xs text-gray-500">{{ item.area }}</div>
                             </div>
+                            <button @click="toggleStatus(item)" 
+                                    class="w-10 h-10 rounded-full flex items-center justify-center text-xl transition"
+                                    :class="item.status === 'delivered' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'">
+                                {{ item.status === 'delivered' ? '✓' : '○' }}
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2 mb-3 text-sm">
+                            <span v-if="item.items.original" class="bg-blue-50 text-blue-700 px-2 py-1 rounded">原味: {{item.items.original}}</span>
+                            <span v-if="item.items.sweet" class="bg-pink-50 text-pink-700 px-2 py-1 rounded">甜味: {{item.items.sweet}}</span>
+                            <span v-if="item.items.choco" class="bg-amber-50 text-amber-800 px-2 py-1 rounded">巧克: {{item.items.choco}}</span>
+                            <span v-if="item.items.strawberry" class="bg-red-50 text-red-700 px-2 py-1 rounded">草莓: {{item.items.strawberry}}</span>
+                            <span v-if="item.items.brown" class="bg-yellow-50 text-yellow-700 px-2 py-1 rounded">黑糖: {{item.items.brown}}</span>
+                        </div>
+
+                        <div class="bg-gray-50 p-2 rounded">
+                            <label class="text-xs text-gray-400 block mb-1">個別消息 / 備註</label>
+                            <input type="text" v-model.lazy="item.note" @change="updateNote(item)"
+                                   placeholder="例如: 門口沒開、改明天..." 
+                                   class="w-full bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none text-sm p-1">
                         </div>
                     </div>
                 </div>
+
+                <div v-else class="text-center text-gray-500 mt-10">
+                    今日無配送資料 💤
+                </div>
             </div>
 
-            <div class="flex gap-3 pt-2">
-                <button @click="saveCustomer" class="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-indigo-200 active:scale-95 transition-transform">儲存並應用</button>
-                <button v-if="form.id" @click="deleteCustomer" class="w-16 bg-white border border-red-100 text-red-500 rounded-2xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-trash-can"></i></button>
-            </div>
-        </div>
+        </main>
     </div>
 
-    <nav class="bottom-nav flex justify-around items-center">
-        <button @click="activeTab = 'A'" :class="['flex flex-col items-center gap-1 w-1/3 transition-all duration-300', activeTab === 'A' ? 'text-indigo-600 -translate-y-1' : 'text-slate-400 scale-90']">
-            <i class="fa-solid fa-calendar-check text-2xl drop-shadow-sm"></i>
-            <span class="text-[9px] font-black tracking-wide">日曆</span>
-        </button>
-        <button @click="activeTab = 'B'" :class="['flex flex-col items-center gap-1 w-1/3 transition-all duration-300', activeTab === 'B' ? 'text-indigo-600 -translate-y-1' : 'text-slate-400 scale-90']">
-            <i class="fa-solid fa-boxes-stacked text-2xl drop-shadow-sm"></i>
-            <span class="text-[9px] font-black tracking-wide">準貨</span>
-        </button>
-        <button @click="activeTab = 'C'" :class="['flex flex-col items-center gap-1 w-1/3 transition-all duration-300', activeTab === 'C' ? 'text-indigo-600 -translate-y-1' : 'text-slate-400 scale-90']">
-            <i class="fa-solid fa-user-gear text-2xl drop-shadow-sm"></i>
-            <span class="text-[9px] font-black tracking-wide">管理</span>
-        </button>
-    </nav>
-
     <script>
-        const { createApp, ref, reactive, computed, watch, onMounted } = Vue;
+        const { createApp, ref, computed, watch, onMounted } = Vue;
 
         createApp({
             setup() {
-                const activeTab = ref('A');
-                const selectedBlock = ref('大埔');
-                const selectedCid = ref('');
-                const currentViewDate = ref(new Date(2025, 11, 1)); // 預設 2025/12
-                const prepOffset = ref(0);
-                const showModal = ref(false);
+                const currentView = ref('delivery'); // 預設手機版
+                const selectedDate = ref(new Date().toISOString().split('T')[0]);
+                const dailyData = ref({});
+                const loading = ref(false);
 
-                // --- 預載 CSV 解析後的真實資料 (79位訂戶) ---
-                const parsedCustomers = [{"id": "c_2", "name": "大埔姑婆", "block": "大埔", "plan": "每天", "rate": 30, "phone": "", "weeklySchedule": [{"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}], "count": 1}, {"id": "c_3", "name": "詹_豬肉燈", "block": "大埔", "plan": "(二)～(日)", "rate": 30, "phone": "", "weeklySchedule": [{"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}], "count": 2}, {"id": "c_4", "name": "松柏園（上惠）", "block": "大埔", "plan": "每天", "rate": 30, "phone": "", "weeklySchedule": [{"原味": 2, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}, {"原味": 2, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 0, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 2}, {"原味": 2, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 2, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 2, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}], "count": 2}, {"id": "c_6", "name": "162號（阿國）", "block": "二鬮", "plan": "每天", "rate": 30, "phone": "", "weeklySchedule": [{"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}, {"原味": 1, "甜味": 0, "巧克力": 0, "草莓": 0, "黑糖": 0}], "count": 1}];
-                // 注意：這裡僅展示部分資料，實作時我已將所有79筆資料邏輯寫入，為了代碼簡潔只列出前幾筆。真實運作時，若 localStorage 為空，會使用完整 79 筆。
+                // 模擬試算表資料 (部分範例，實作時應完整填入或做 CSV 上傳功能)
+                // 這裡展示如何將試算表結構轉換為程式邏輯
+                const rawSheetData = [
+                    // 格式: [週期, 次序, 名稱, 街區, 週一(5), 週二(5)... 週日(5)]
+                    // 為簡化，此處僅放幾筆範例資料
+                    { name: "大埔姑婆", order: 1, area: "大埔", pattern: [1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1, 1,1,1,1,1] },
+                    { name: "詹_豬肉燈", order: 2, area: "大埔", pattern: [0,0,0,0,0, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2, 2,2,2,2,2] }, // (二)~(日)
+                ];
 
-                const customers = ref(JSON.parse(localStorage.getItem('goat_c_v15')) || parsedCustomers);
-                const logs = reactive(JSON.parse(localStorage.getItem('goat_l_v15')) || {});
-                
-                // 從資料中提取所有不重複的街區
-                const uniqueBlocks = Array.from(new Set(customers.value.map(c => c.block))).sort();
-                const blocks = ref(uniqueBlocks);
-                
-                watch(customers, (v) => localStorage.setItem('goat_c_v15', JSON.stringify(v)), { deep: true });
-                watch(logs, (v) => localStorage.setItem('goat_l_v15', JSON.stringify(v)), { deep: true });
-
-                const flavors = ['原味','甜味','黑糖','巧克力','草莓'];
-                const form = reactive({ id: null, name: '', block: '大埔', rate: 30, phone: '', weeklySchedule: [] });
-
-                // --- 日曆引擎 ---
-                const calendarDays = computed(() => {
-                    const y = currentViewDate.value.getFullYear();
-                    const m = currentViewDate.value.getMonth();
-                    const first = new Date(y, m, 1).getDay();
-                    const adj = (first === 0) ? 6 : first - 1; 
-                    const days = [];
-                    for (let i = 0; i < adj; i++) days.push({ date: null });
-                    for (let i = 1; i <= new Date(y, m + 1, 0).getDate(); i++) {
-                        days.push({ date: i, dateKey: `${y}-${String(m + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}` });
-                    }
-                    return days;
+                // 監聽日期變動，讀取 Firebase
+                watch(selectedDate, (newDate) => {
+                    loadDateData(newDate);
                 });
 
-                const getFlavorByWeekday = (cid, dateKey) => {
-                    const c = customers.value.find(x => x.id === cid);
-                    if (!c) return '';
-                    let wd = new Date(dateKey).getDay();
-                    wd = (wd === 0) ? 6 : wd - 1;
-                    const config = c.weeklySchedule[wd];
-                    // 生成縮寫 (如: 原1,黑2)
-                    return Object.entries(config)
-                        .filter(([f, n]) => n > 0)
-                        .map(([f, n]) => `${f[0]}${n}`)
-                        .join(',');
-                };
+                function loadDateData(dateStr) {
+                    if(!window.dbRef) return;
+                    const dateRef = window.dbRef(window.db, `daily_operations/${dateStr}`);
+                    window.dbOnValue(dateRef, (snapshot) => {
+                        const data = snapshot.val();
+                        dailyData.value = data || {};
+                    });
+                }
 
-                const isExpectedDay = (cid, dateKey) => getFlavorByWeekday(cid, dateKey) !== '';
-
-                const toggleStatus = (cid, dateKey) => {
-                    if (!logs[cid]) logs[cid] = {};
-                    const cur = logs[cid][dateKey];
-                    if (!cur) logs[cid][dateKey] = 'S';
-                    else if (cur === 'S') logs[cid][dateKey] = 'L';
-                    else if (cur === 'L') logs[cid][dateKey] = 'F';
-                    else delete logs[cid][dateKey];
-                };
-
-                const getStatusClass = (cid, dateKey) => {
-                    const s = logs[cid]?.[dateKey];
-                    if (s === 'S') return 'state-success';
-                    if (s === 'L') return 'state-leave';
-                    if (s === 'F') return 'state-fail';
-                    return isExpectedDay(cid, dateKey) ? 'state-ready' : 'state-empty';
-                };
-
-                // --- 準貨邏輯 ---
-                const prepSummary = computed(() => {
-                    const d = new Date(); d.setDate(d.getDate() + prepOffset.value);
-                    const key = d.toISOString().split('T')[0];
-                    let wd = d.getDay(); wd = (wd === 0) ? 6 : wd - 1;
-                    const summary = { '原味':0, '甜味':0, '黑糖':0, '巧克力':0, '草莓':0 };
-                    customers.value.forEach(c => {
-                        const s = logs[c.id]?.[key];
-                        // 邏輯：(計畫要送 且 沒請假) 或 (已標記送達)
-                        if ((isExpectedDay(c.id, key) && s !== 'L') || s === 'S') {
-                            Object.entries(c.weeklySchedule[wd]).forEach(([f, n]) => summary[f] += (n || 0));
+                // 計算屬性：每日統計 (經理用)
+                const dailyStats = computed(() => {
+                    const stats = { original: 0, sweet: 0, choco: 0, strawberry: 0, brown: 0 };
+                    Object.values(dailyData.value).forEach(cust => {
+                        if (cust.items) {
+                            stats.original += parseInt(cust.items.original || 0);
+                            stats.sweet += parseInt(cust.items.sweet || 0);
+                            stats.choco += parseInt(cust.items.choco || 0);
+                            stats.strawberry += parseInt(cust.items.strawberry || 0);
+                            stats.brown += parseInt(cust.items.brown || 0);
                         }
                     });
-                    return summary;
+                    return stats;
                 });
 
-                const prepTotalCount = computed(() => Object.values(prepSummary.value).reduce((a, b) => a + b, 0));
-
-                // --- 介面過濾 ---
-                const filteredCustomers = computed(() => customers.value.filter(c => c.block === selectedBlock.value));
-                const currentCustomer = computed(() => customers.value.find(c => c.id === selectedCid.value));
-                
-                // 確保切換街區時自動選取第一位
-                watch(selectedBlock, () => {
-                    if (filteredCustomers.value.length > 0) selectedCid.value = filteredCustomers.value[0].id;
+                // 計算屬性：排序後的配送清單 (配送員用)
+                const sortedDailyList = computed(() => {
+                    const list = Object.entries(dailyData.value).map(([key, val]) => ({
+                        id: key,
+                        ...val
+                    }));
+                    // 依 order 排序
+                    return list.sort((a, b) => a.order - b.order);
                 });
 
-                // --- 編輯 ---
-                const openEdit = (c) => {
-                    if (c) Object.assign(form, JSON.parse(JSON.stringify(c)));
-                    else {
-                        const emptyWeek = Array.from({length:7}, () => {
-                            const obj = {}; flavors.forEach(f => obj[f] = 0);
-                            return obj;
+                // 功能：生成 2025/12 - 2026/01 資料
+                async function generateData() {
+                    if(!confirm("確定要重新生成資料嗎？這將寫入資料庫。")) return;
+                    loading.value = true;
+                    
+                    const updates = {};
+                    const startDate = new Date("2025-12-01");
+                    const endDate = new Date("2026-01-31");
+
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                        const dateStr = d.toISOString().split('T')[0];
+                        // 0=Sun, 1=Mon... 但 Sheet 資料通常 0=Mon or mapped accordingly.
+                        // 假設 Sheet pattern 是 Mon(0-4), Tue(5-9)... Sun(30-34)
+                        let jsDay = d.getDay(); // 0(Sun) - 6(Sat)
+                        // 轉換為我們 pattern 的 index: Mon=0, ..., Sun=6
+                        let patternDayIndex = jsDay === 0 ? 6 : jsDay - 1; 
+
+                        // 遍歷所有客戶
+                        // *註：實際應用應包含完整 78 位客戶資料，此處以 rawSheetData 示範
+                        rawSheetData.forEach((cust, idx) => {
+                            const startIdx = patternDayIndex * 5;
+                            const items = {
+                                original: cust.pattern[startIdx],
+                                sweet: cust.pattern[startIdx+1],
+                                choco: cust.pattern[startIdx+2],
+                                strawberry: cust.pattern[startIdx+3],
+                                brown: cust.pattern[startIdx+4]
+                            };
+
+                            // 只有當天有數量才寫入
+                            const total = Object.values(items).reduce((a,b)=>a+b, 0);
+                            if (total > 0) {
+                                updates[`daily_operations/${dateStr}/cust_${idx}`] = {
+                                    name: cust.name,
+                                    order: cust.order,
+                                    area: cust.area,
+                                    items: items,
+                                    status: 'pending',
+                                    note: ''
+                                };
+                            }
                         });
-                        Object.assign(form, { id: null, name: '', block: '大埔', rate: 30, phone: '', weeklySchedule: emptyWeek });
                     }
-                    showModal.value = true;
-                };
 
-                const saveCustomer = () => {
-                    if (!form.name) return;
-                    if (form.id) {
-                        const idx = customers.value.findIndex(x => x.id === form.id);
-                        customers.value[idx] = { ...form };
-                    } else {
-                        form.id = Date.now().toString();
-                        customers.value.push({ ...form });
+                    try {
+                        await window.dbUpdate(window.dbRef(window.db), updates);
+                        alert("2025/12 及 2026/01 資料生成完畢！");
+                    } catch (e) {
+                        alert("錯誤：" + e.message);
                     }
-                    // 更新街區列表
-                    if (!blocks.value.includes(form.block)) blocks.value.push(form.block);
-                    showModal.value = false;
-                };
-                
-                const deleteCustomer = () => {
-                    if (confirm('刪除？')) {
-                        customers.value = customers.value.filter(c => c.id !== form.id);
-                        showModal.value = false;
-                    }
-                };
+                    loading.value = false;
+                }
 
-                // 本月金額試算
-                const currentMonthTotal = computed(() => {
-                    const c = currentCustomer.value;
-                    if (!c || !logs[c.id]) return 0;
-                    let total = 0;
-                    Object.entries(logs[c.id]).forEach(([dk, s]) => {
-                        if (s === 'S') {
-                            let wd = new Date(dk).getDay(); wd = (wd === 0) ? 6 : wd - 1;
-                            const dailyCount = Object.values(c.weeklySchedule[wd]).reduce((a,b)=>a+b,0);
-                            total += dailyCount * c.rate;
-                        }
-                    });
-                    return total;
+                // 功能：更新狀態
+                function toggleStatus(item) {
+                    const newStatus = item.status === 'delivered' ? 'pending' : 'delivered';
+                    const updates = {};
+                    updates[`daily_operations/${selectedDate.value}/${item.id}/status`] = newStatus;
+                    window.dbUpdate(window.dbRef(window.db), updates);
+                }
+
+                // 功能：更新備註
+                function updateNote(item) {
+                    const updates = {};
+                    updates[`daily_operations/${selectedDate.value}/${item.id}/note`] = item.note;
+                    window.dbUpdate(window.dbRef(window.db), updates);
+                }
+
+                // 輔助功能
+                function formatDate(str) {
+                    return str; // 可格式化為 12月25日
+                }
+                function getWeekDay(dateStr) {
+                    const days = ['週日','週一','週二','週三','週四','週五','週六'];
+                    return days[new Date(dateStr).getDay()];
+                }
+                function changeDate(offset) {
+                    const d = new Date(selectedDate.value);
+                    d.setDate(d.getDate() + offset);
+                    selectedDate.value = d.toISOString().split('T')[0];
+                }
+
+                onMounted(() => {
+                    // 初始化載入今天資料
+                    loadDateData(selectedDate.value);
                 });
 
-                return { 
-                    activeTab, selectedBlock, selectedCid, customers, blocks, prepOffset, logs, 
-                    toggleStatus, getStatusClass, prepSummary, prepTotalCount, showModal, form, openEdit, saveCustomer, deleteCustomer,
-                    calendarDays, flavors, getFlavorByWeekday, isExpectedDay, filteredCustomers, currentCustomer, currentMonthTotal,
-                    changeMonth: (v) => { const nd = new Date(currentViewDate.value); nd.setMonth(nd.getMonth()+v); currentViewDate.value = nd; },
-                    viewMonthLabel: computed(() => currentViewDate.value.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long' })),
-                    getPrepDateLabel: (o) => { const d = new Date(); d.setDate(d.getDate() + o); return o === 0 ? '今天' : o === 1 ? '明天' : (d.getMonth()+1)+'/'+d.getDate(); },
-                    getPrepDateFull: (o) => { const d = new Date(); d.setDate(d.getDate() + o); return d.toLocaleDateString('zh-TW', { month:'long', day:'numeric', weekday:'short' }); }
+                return {
+                    currentView,
+                    selectedDate,
+                    dailyData,
+                    dailyStats,
+                    sortedDailyList,
+                    loading,
+                    generateData,
+                    toggleStatus,
+                    updateNote,
+                    formatDate,
+                    getWeekDay,
+                    changeDate
                 };
             }
         }).mount('#app');
     </script>
-</div>
+</body>
+</html>
