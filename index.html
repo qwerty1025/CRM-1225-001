@@ -2,699 +2,842 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>羊奶中控系統 V15 (街區管理版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>羊奶 CRM (v3.7.0 Smart Layout)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+
     <style>
-        :root {
-            --sidebar-width: 260px;
-            --sidebar-collapsed: 50px;
-            --primary: #2c3e50;
-            --accent: #8e44ad; /* V15 改為紫色系區分 */
-            --bg: #f0f2f5;
-            --border: #e0e0e0;
-            --group-bg: #f3e5f5; /* 淺紫群組底色 */
-        }
-        body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; background: var(--bg); height: 100vh; display: flex; overflow: hidden; }
-
-        /* 左側欄 */
-        .sidebar {
-            width: var(--sidebar-width); background: white; border-right: 1px solid var(--border);
-            display: flex; flex-direction: column; transition: width 0.3s ease; flex-shrink: 0; z-index: 10;
-        }
-        .sidebar.collapsed { width: var(--sidebar-collapsed); }
-        .sidebar.collapsed .sb-text, .sidebar.collapsed .search-box, .sidebar.collapsed .c-info, .sidebar.collapsed .btn-label, .sidebar.collapsed .addr-header { display: none; }
-        .sidebar.collapsed .c-item { justify-content: center; padding: 10px; }
-        .sidebar.collapsed .c-item span { display: none; }
-        .sidebar.collapsed .c-item::after { content: "●"; color: var(--accent); }
-        
-        .sb-header { padding: 10px; background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
-        .toggle-btn { background: none; border: none; color: white; cursor: pointer; font-size: 1.1rem; }
-        .search-box { padding: 8px; border-bottom: 1px solid #eee; background: #fff; }
-        .search-box input { width: 100%; padding: 5px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 3px; font-size: 0.8rem; }
-        
-        .c-list { flex: 1; overflow-y: auto; list-style: none; padding: 0; margin: 0; }
-
-        /* V15 群組標題 (街區) */
-        .addr-group { border-bottom: 1px solid #eee; }
-        .addr-header {
-            background: var(--group-bg);
-            color: #4a148c;
-            padding: 4px 10px;
-            font-size: 0.75rem; /* text-xs */
-            font-weight: bold;
-            display: flex; align-items: center; gap: 5px;
-            position: sticky; top: 0; z-index: 5;
-            border-bottom: 1px solid #e1bee7;
-        }
-
-        /* 列表項目 */
-        .c-item { 
-            padding: 4px 10px 4px 20px;
-            cursor: pointer; 
-            display: flex; align-items: center; justify-content: space-between;
-            min-height: 28px;
-            transition: background 0.1s;
-            background: white;
-            font-size: 0.75rem; /* text-xs */
-            color: #333;
-            border-bottom: 1px dashed #f5f5f5;
-        }
-        .c-item:hover { background: #f3e5f5; }
-        .c-item.active { background: #e1bee7; color: #000; font-weight: bold; border-left: 3px solid var(--accent); padding-left: 17px; }
-        
-        .c-item-content { display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; width: 100%; }
-        .c-name { font-weight: bold; color: #2c3e50; }
-        .c-divider { color: #ccc; font-size: 0.7rem; }
-        .c-phone { color: #888; font-family: monospace; }
-
-        /* 側邊欄底部 */
-        .sb-footer { padding: 8px; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 5px; background: #fff; }
-        .sb-btn { 
-            width: 100%; padding: 6px; border: none; font-weight: bold; cursor: pointer; 
-            border-radius: 3px; text-align: left; display: flex; align-items: center; gap: 8px;
-            font-size: 0.8rem;
-        }
-        .btn-add { background: #2c3e50; color: white; justify-content: center;}
-        
-        .io-group { display: flex; gap: 5px; }
-        .btn-io { flex: 1; background: #ecf0f1; color: #555; font-size: 0.75rem; justify-content: center;}
-        .btn-io:hover { background: #d0d3d4; }
-
-        /* 主內容 */
-        .main { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; position: relative; }
-        
-        /* V15 Header 調整：雙層結構以容納更多資訊 */
-        .header-container { background: white; padding: 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 8px; }
-        .header-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        
-        input, select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 3px; font-size: 0.9rem; }
-        input:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
-        
-        /* V15 新增欄位樣式 */
-        .sector-select { background-color: #f3e5f5; color: #4a148c; font-weight: bold; border: 1px solid #e1bee7; }
-        .note-input { font-size: 0.8rem; flex: 1; border-bottom: 1px solid #ddd; background: #fafafa; }
-        .note-label { font-size: 0.75rem; color: #888; margin-right: 5px; font-weight: bold; }
-
-        .btn-clone { background: #f39c12; color: white; border: none; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem; cursor: pointer; margin-left: auto; }
-
-        .empty-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #999; }
-
-        /* 矩陣設定 */
-        .config-card { background: white; border-radius: 6px; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .matrix-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 8px; }
-        .matrix-table th { background: #f8f9fa; padding: 6px; border: 1px solid #eee; color: #555; }
-        .matrix-table td { border: 1px solid #eee; padding: 4px; text-align: center; }
-        
-        .t-btn { 
-            display: inline-block; width: 24px; height: 24px; line-height: 24px; 
-            border: 1px solid #eee; border-radius: 3px; cursor: pointer; margin: 0 1px; 
-            color: #ccc; background: white; font-size: 0.8rem; user-select: none;
-        }
-        .t-btn.active { background: var(--accent); color: white; border-color: var(--accent); font-weight: bold; }
-
-        .pt-row { display: flex; gap: 5px; flex-wrap: wrap; }
-        .pt-btn { font-size: 0.75rem; padding: 3px 8px; background: #ede7f6; color: #4a148c; border-radius: 10px; cursor: pointer; border: 1px solid #d1c4e9; }
-
-        /* 日曆 */
-        .cal-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
-        .cal-card { background: white; border-radius: 6px; padding: 8px; border-top: 3px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .cal-header { display: flex; justify-content: space-between; font-weight: bold; font-size: 0.85rem; padding-bottom: 5px; margin-bottom: 5px; border-bottom: 1px solid #eee; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-        .cal-head { font-size: 0.75rem; text-align: center; color: #aaa; }
-        .cal-cell { aspect-ratio: 1; border: 1px solid #f5f5f5; position: relative; cursor: pointer; border-radius: 3px; }
-        .date-num { position: absolute; top: 2px; left: 2px; font-size: 0.65rem; color: #666; font-weight: bold; }
-        .content-badge {
-            position: absolute; bottom: 1px; right: 1px; left: 1px;
-            background: rgba(255,255,255,0.9); border: 1px solid #ddd;
-            border-radius: 2px; font-size: 0.65rem; text-align: center;
-            color: #333; font-weight: bold; padding: 0;
+        body { 
+            font-family: 'M PLUS Rounded 1c', sans-serif; 
+            background-color: #f5f5f4; 
+            color: #44403c;
+            height: 100vh;
+            overflow: hidden;
         }
         
-        .st-normal { background: #d1c4e9; } /* V15 紫色系 */
-        .st-paused { background: #ffcdd2; }
-        .st-missed { background: #fff9c4; border: 1px solid #fbc02d; }
-        .st-holiday { background: #f5f5f5; }
-        .st-paused .content-badge { text-decoration: line-through; color: #c62828; opacity: 0.7; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 99px; }
+        .custom-scroll:hover::-webkit-scrollbar-thumb { background: #a8a29e; }
 
-        /* 浮動按鈕 */
-        .fab-group { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; align-items: end; }
-        .fab-btn { 
-            padding: 10px 18px; border-radius: 30px; border: none; color: white; 
-            font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
-            display: flex; align-items: center; gap: 5px; transition: transform 0.1s; font-size: 0.9rem;
+        .btn-press:active { transform: scale(0.97); filter: brightness(0.95); }
+        
+        /* v3.7.0 看板欄位基礎樣式 (動態寬度由 Vue 控制) */
+        .kanban-col-base {
+            @apply flex-shrink-0 flex flex-col bg-stone-200/60 rounded-xl overflow-hidden border border-stone-200 max-h-full transition-all duration-300;
         }
-        .fab-btn:active { transform: scale(0.95); }
-        .btn-save { background: #8e44ad; }
-        .btn-save-exit { background: #2c3e50; }
+        .kanban-col-base:hover { @apply bg-stone-200/80 border-stone-300; }
 
-        /* 匯入遮罩 */
-        #importModal {
-            position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); 
-            display:none; justify-content:center; align-items:center; z-index:100;
+        /* 輸入框微型化 v3.7.0 */
+        .input-sidebar { 
+            @apply w-full bg-white border border-stone-300 rounded px-2 py-1 text-xs font-bold text-stone-700 outline-none focus:bg-white focus:border-stone-800 focus:ring-1 focus:ring-stone-800 transition shadow-sm;
+            height: 28px;
         }
-        .modal-box { background:white; padding:20px; border-radius:8px; text-align:center; width:300px; }
+        .label-sidebar { @apply text-[9px] text-stone-400 font-bold mb-1 block uppercase tracking-wider ml-0.5; }
+
+        .input-micro { 
+            @apply w-full bg-stone-50 border border-stone-300 rounded px-1.5 py-0.5 text-[10px] font-bold text-stone-700 outline-none focus:border-emerald-500 focus:bg-white transition; 
+            height: 24px;
+        }
+
+        /* 類型燈號 */
+        .dot-type { @apply w-2 h-2 rounded-full shadow-sm ring-1 ring-white; }
+        .dot-morning { @apply bg-orange-400; }
+        .dot-family { @apply bg-rose-400; }
+        .dot-group { @apply bg-violet-400; }
+
+        /* UI Selectors (Type/Status) v3.7.0 */
+        .ui-selector-btn {
+            @apply flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md border text-[10px] font-bold transition cursor-pointer select-none;
+        }
+        
+        /* Type Selector Styles */
+        .type-btn-morning { @apply border-stone-200 text-stone-500 bg-white hover:bg-orange-50; }
+        .type-btn-morning.active { @apply border-orange-400 bg-orange-100 text-orange-700 ring-1 ring-orange-400; }
+        
+        .type-btn-family { @apply border-stone-200 text-stone-500 bg-white hover:bg-rose-50; }
+        .type-btn-family.active { @apply border-rose-400 bg-rose-100 text-rose-700 ring-1 ring-rose-400; }
+        
+        .type-btn-group { @apply border-stone-200 text-stone-500 bg-white hover:bg-violet-50; }
+        .type-btn-group.active { @apply border-violet-400 bg-violet-100 text-violet-700 ring-1 ring-violet-400; }
+
+        /* Status Selector Styles */
+        .status-btn-base { @apply border-stone-200 bg-white text-stone-400 hover:border-stone-400; }
+        .status-btn-base.active { @apply text-white shadow-md border-transparent transform scale-105; }
+        
+        /* Specific Status Active Colors */
+        .status-btn-save.active { @apply bg-stone-500; }
+        .status-btn-notified.active { @apply bg-amber-500; }
+        .status-btn-billed.active { @apply bg-blue-500; }
+        .status-btn-paid.active { @apply bg-emerald-500; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(231, 229, 228, 1);
+        }
+
+        .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
+        .slide-enter-from, .slide-leave-to { transform: translateX(100%); opacity: 0; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease-out; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        
+        /* Card Quick Status Buttons */
+        .card-status-btn {
+            @apply h-5 flex items-center justify-center text-[8px] font-bold border-t border-r border-stone-100 last:border-r-0 bg-stone-50 text-stone-400 hover:bg-stone-100 transition cursor-pointer;
+        }
+        .card-status-btn.active-btn { @apply text-white shadow-inner; }
+        .bg-active-暫存 { @apply bg-stone-400; }
+        .bg-active-已通知 { @apply bg-amber-400; }
+        .bg-active-已出帳 { @apply bg-blue-400; }
+        .bg-active-已收款 { @apply bg-emerald-400; }
 
     </style>
 </head>
-<body>
+<body class="h-screen w-screen flex flex-col text-slate-800 bg-stone-100">
 
-<nav class="sidebar" id="sidebar">
-    <div class="sb-header">
-        <span class="sb-text">🌆 V15 街區管理</span>
-        <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
-    </div>
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="搜尋姓名、地址..." oninput="filterList()">
-    </div>
-    
-    <div class="c-list" id="customerList">
-        <div style="padding:15px; text-align:center; color:#999; font-size:0.75rem;">載入中...</div>
-    </div>
-    
-    <div class="sb-footer">
-        <button class="sb-btn btn-add" onclick="resetForm(true)">
-            <span>+ 新增客戶</span>
-        </button>
-        <div class="io-group">
-            <button class="sb-btn btn-io" onclick="document.getElementById('csvInput').click()">
-                📂 匯入
-            </button>
-            <button class="sb-btn btn-io" onclick="exportCSV()">
-                💾 匯出
-            </button>
-        </div>
-        <input type="file" id="csvInput" accept=".csv" style="display:none">
-    </div>
-</nav>
+    <div id="app" class="flex flex-col h-full w-full relative">
 
-<main class="main">
-    <div id="emptyState" class="empty-state">
-        <h2>👋 V15 就緒</h2>
-        <p>街區分組模式 (預設：其他)</p>
-        <p style="font-size:0.75rem; color:#bbb;">選擇左側客戶進行編輯</p>
-    </div>
-
-    <div id="workspace" style="display:none; flex-direction:column; gap:15px;">
-        <div class="header-container">
-            <div class="header-row">
-                <select id="inpSector" class="sector-select" style="min-width: 80px;">
-                    </select>
-                <input type="text" id="inpName" placeholder="客戶姓名" style="font-size:1.1rem; font-weight:bold; width:90px; border:none; border-bottom:1px solid #ccc;">
-                <input type="text" id="inpPhone" placeholder="電話" style="width:110px; border:1px solid #eee; padding:3px;">
-                <input type="text" id="inpAddr" placeholder="詳細地址" style="flex:1; border:1px solid #eee; padding:3px; min-width: 120px;">
-                <label style="font-size:0.85rem;">$ <input type="number" id="inpPrice" value="35" style="width:40px;"></label>
-                <button class="btn-clone" onclick="cloneCustomer()">📑 複製</button>
+        <header class="glass-panel px-4 py-2 flex justify-between items-center shrink-0 z-50 h-[56px] shadow-sm">
+            <div @click="reloadPage" class="font-bold text-base text-stone-800 flex items-center gap-2 cursor-pointer select-none btn-press group">
+                <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-700 group-hover:bg-emerald-200 transition"><i class="fas fa-leaf"></i></div>
+                <div class="flex flex-col leading-none">
+                    <span class="tracking-tight text-lg font-extrabold text-stone-700">五寮尖</span>
+                    <span class="text-[9px] text-stone-400 font-mono">v3.7.0</span>
+                </div>
             </div>
-            <div class="header-row" style="background: #fdfdfd; padding: 5px; border-radius: 4px; border: 1px dotted #eee;">
-                <span class="note-label">備註A:</span>
-                <input type="text" id="inpNoteA" class="note-input" placeholder="空白">
-                <span class="note-label" style="margin-left: 10px;">備註B:</span>
-                <input type="text" id="inpNoteB" class="note-input" placeholder="空白">
-            </div>
-        </div>
-
-        <div class="config-card">
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                <div class="pt-row" id="patternBox"></div>
-                <label style="font-size:0.85rem;"><input type="checkbox" id="chkHoliday"> 見紅不休</label>
-            </div>
-            <table class="matrix-table">
-                <thead>
-                    <tr><th style="width:40px;"></th><th>原味 (1,2,4,6)</th><th>甜味 (1,2)</th><th>巧克力 (1,2)</th><th>草莓 (1,2)</th><th>黑糖 (1,2)</th></tr>
-                </thead>
-                <tbody id="matrixBody"></tbody>
-            </table>
-        </div>
-
-        <div class="cal-wrapper" id="calendarGrid"></div>
-        <div style="height:60px;"></div>
-    </div>
-</main>
-
-<div class="fab-group" id="fabGroup" style="display:none;">
-    <button class="fab-btn btn-save" onclick="saveData(false)">💾 儲存</button>
-    <button class="fab-btn btn-save-exit" onclick="saveData(true)">💾 儲存並結束</button>
-</div>
-
-<div id="importModal">
-    <div class="modal-box">
-        <h3>資料處理中...</h3>
-        <p id="importStatus" style="color:#666; margin:10px 0;">請稍候...</p>
-        <div style="width:100%; background:#eee; height:5px; border-radius:3px; overflow:hidden;">
-            <div id="progressBar" style="width:0%; background:var(--accent); height:100%; transition: width 0.3s;"></div>
-        </div>
-    </div>
-</div>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, query, orderBy, serverTimestamp, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    // Firebase 設定
-    const firebaseConfig = {
-        apiKey: "AIzaSyALj-w6MSC_5CgGCVUVFveoV8-ykRxcu24",
-        authDomain: "crm-1225-003.firebaseapp.com",
-        projectId: "crm-1225-003",
-        storageBucket: "crm-1225-003.firebasestorage.app",
-        messagingSenderId: "566985177794",
-        appId: "1:566985177794:web:fcf21c033bd62c3bd7195b"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    // V15 資料庫集合名稱
-    const COL = "customers_v15_sector";
-
-    // V15 常數定義
-    const FLAVORS = ["原味", "甜味", "巧克力", "草莓", "黑糖"];
-    const DAYS = ["日","一","二","三","四","五","六"];
-    const PATTERNS = [{l:"平日",d:[1,2,3,4,5]},{l:"每天",d:[0,1,2,3,4,5,6]},{l:"一三五",d:[1,3,5]},{l:"二四六",d:[2,4,6]}];
-    const HOLIDAYS = {"2025-12-25":"聖誕","2026-1-1":"元旦","2026-2-17":"除夕","2026-2-28":"228"};
-    
-    // V15 街區清單 (順序重要)
-    const SECTORS = [
-        "大埔", "二鬮", "添福", "中園街", "弘道", 
-        "老街", "長泰街", "介壽路", "永安街", "光明路", 
-        "大同路", "中華路", "中正路", "菜市場", "中山路", 
-        "大仁路", "復興路", "北大", "鶯歌", "其他"
-    ];
-
-    let currentId = null;
-    let currentMatrix = {};
-    let manualOverrides = {}; 
-    let startMonth = new Date(2025, 11, 1);
-    let allCustomers = []; 
-
-    // --- UI Init ---
-    // 1. 生成街區下拉選單
-    const sectorSelect = document.getElementById('inpSector');
-    SECTORS.forEach(sec => {
-        const opt = document.createElement('option');
-        opt.value = sec;
-        opt.textContent = sec;
-        sectorSelect.appendChild(opt);
-    });
-
-    // 2. 快速排程按鈕
-    const ptBox = document.getElementById('patternBox');
-    PATTERNS.forEach(p => {
-        const btn = document.createElement('div');
-        btn.className = 'pt-btn'; btn.textContent = p.l; btn.onclick=()=>applyPattern(p.d);
-        ptBox.appendChild(btn);
-    });
-
-    // 3. 矩陣表格
-    const mxBody = document.getElementById('matrixBody');
-    [1,2,3,4,5,6,0].forEach(dIdx => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td style="font-weight:bold; color:${dIdx===0||dIdx===6?'red':'#333'}">${DAYS[dIdx]}</td>`;
-        FLAVORS.forEach(f => {
-            const key = `${dIdx}_${f}`;
-            const td = document.createElement('td');
-            const opts = (f === "原味") ? [1,2,4,6] : [1,2];
-            let html = "";
-            opts.forEach(v => html += `<span class="t-btn" data-key="${key}" data-val="${v}" onclick="toggleMatrix(this)">${v}</span>`);
-            td.innerHTML = html;
-            tr.appendChild(td);
-        });
-        mxBody.appendChild(tr);
-    });
-
-    // --- Logic ---
-    window.toggleSidebar = () => document.getElementById('sidebar').classList.toggle('collapsed');
-
-    window.toggleMatrix = (el) => {
-        const key = el.dataset.key;
-        const val = parseInt(el.dataset.val);
-        const active = el.classList.contains('active');
-        document.querySelectorAll(`.t-btn[data-key="${key}"]`).forEach(b => b.classList.remove('active'));
-        if(active) delete currentMatrix[key];
-        else { el.classList.add('active'); currentMatrix[key] = val; }
-        renderCal();
-    };
-
-    function applyPattern(days) {
-        document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
-        currentMatrix = {};
-        days.forEach(d => {
-            const k = `${d}_原味`; currentMatrix[k] = 1;
-            const b = document.querySelector(`.t-btn[data-key="${k}"][data-val="1"]`);
-            if(b) b.classList.add('active');
-        });
-        renderCal();
-    }
-
-    window.cycleState = (dateStr) => {
-        let st = manualOverrides[dateStr] || 0;
-        st = (st + 1) % 3;
-        if(st === 0) delete manualOverrides[dateStr];
-        else manualOverrides[dateStr] = st;
-        renderCal();
-    };
-
-    function renderCal() {
-        const grid = document.getElementById('calendarGrid');
-        grid.innerHTML = "";
-        const price = parseInt(document.getElementById('inpPrice').value) || 35;
-        const doHol = document.getElementById('chkHoliday').checked;
-
-        for(let i=0; i<6; i++) {
-            const viewD = new Date(startMonth.getFullYear(), startMonth.getMonth()+i, 1);
-            const y = viewD.getFullYear();
-            const m = viewD.getMonth();
-            const dim = new Date(y, m+1, 0).getDate();
-            const fd = new Date(y, m, 1).getDay();
-            let mQty = 0; let cells = "";
-            for(let k=0; k<fd; k++) cells += `<div></div>`;
-
-            for(let d=1; d<=dim; d++) {
-                const dateStr = `${y}-${m+1}-${d}`;
-                const dw = new Date(y,m,d).getDay();
-                const isHol = HOLIDAYS[dateStr];
-                
-                let bQty = 0; let txt = "";
-                FLAVORS.forEach(f => {
-                    const q = currentMatrix[`${dw}_${f}`];
-                    if(q) { bQty += q; txt += (f==="原味"?"原":f[0]) + q + " "; }
-                });
-
-                let st = "st-none"; let fQty = bQty; const ovr = manualOverrides[dateStr];
-                if(isHol && !doHol) { st="st-holiday"; fQty=0; }
-                else if(ovr === 1) { st="st-paused"; fQty=0; }
-                else if(ovr === 2) { st="st-missed"; fQty=0; }
-                else if(bQty > 0) st="st-normal";
-                mQty += fQty;
-
-                let inner = `<span class="date-num">${d}</span>`;
-                if(isHol) inner += `<span style="font-size:0.6rem;color:red;position:absolute;top:2px;right:2px;">${isHol}</span>`;
-                if(bQty > 0 || ovr > 0) inner += `<div class="content-badge">${txt}</div>`;
-                cells += `<div class="cal-cell ${st}" onclick="cycleState('${dateStr}')">${inner}</div>`;
-            }
-
-            const card = document.createElement('div');
-            card.className = "cal-card";
-            card.innerHTML = `<div class="cal-header"><span>${y}/${m+1}</span><span style="color:var(--accent)">${mQty}瓶 | $${mQty*price}</span></div><div class="cal-grid"><div class="cal-head">日</div><div class="cal-head">一</div><div class="cal-head">二</div><div class="cal-head">三</div><div class="cal-head">四</div><div class="cal-head">五</div><div class="cal-head">六</div>${cells}</div>`;
-            grid.appendChild(card);
-        }
-    }
-
-    // --- CRUD ---
-    window.resetForm = (isNew) => {
-        currentId = null;
-        document.getElementById('emptyState').style.display = 'none';
-        document.getElementById('workspace').style.display = 'flex';
-        document.getElementById('fabGroup').style.display = 'flex';
-        
-        // V15 預設值
-        document.getElementById('inpSector').value = "其他";
-        document.getElementById('inpName').value = "";
-        document.getElementById('inpPhone').value = "";
-        document.getElementById('inpAddr').value = "";
-        document.getElementById('inpNoteA').value = ""; // V15
-        document.getElementById('inpNoteB').value = ""; // V15
-        document.getElementById('inpPrice').value = 35;
-        document.getElementById('chkHoliday').checked = false;
-        
-        currentMatrix = {}; manualOverrides = {};
-        document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.c-item').forEach(e => e.classList.remove('active'));
-        renderCal();
-        if(isNew) document.getElementById('inpName').focus();
-    };
-
-    function loadCustomer(id, data) {
-        resetForm(false);
-        currentId = id;
-        // V15 載入
-        document.getElementById('inpSector').value = data.sector || "其他";
-        document.getElementById('inpName').value = data.name;
-        document.getElementById('inpPhone').value = data.phone;
-        document.getElementById('inpAddr').value = data.address;
-        document.getElementById('inpNoteA').value = data.noteA || "";
-        document.getElementById('inpNoteB').value = data.noteB || "";
-        document.getElementById('inpPrice').value = data.unitPrice;
-        document.getElementById('chkHoliday').checked = data.holidayDeliver;
-        
-        currentMatrix = data.matrix || {};
-        manualOverrides = data.manualOverrides || {};
-        Object.keys(currentMatrix).forEach(k => {
-            const v = currentMatrix[k];
-            const btn = document.querySelector(`.t-btn[data-key="${k}"][data-val="${v}"]`);
-            if(btn) btn.classList.add('active');
-        });
-        renderCal();
-    }
-
-    window.cloneCustomer = async () => {
-        if(!currentId) return alert("請先選擇客戶");
-        const newName = prompt("新客戶姓名:", document.getElementById('inpName').value + "(複製)");
-        if(!newName) return;
-        const newData = {
-            sector: document.getElementById('inpSector').value, // V15
-            name: newName, 
-            phone: "", 
-            address: document.getElementById('inpAddr').value,
-            noteA: document.getElementById('inpNoteA').value, // V15
-            noteB: document.getElementById('inpNoteB').value, // V15
-            unitPrice: parseInt(document.getElementById('inpPrice').value),
-            holidayDeliver: document.getElementById('chkHoliday').checked,
-            matrix: currentMatrix, manualOverrides: {}, updatedAt: serverTimestamp()
-        };
-        const ref = await addDoc(collection(db, COL), newData);
-        loadCustomer(ref.id, newData);
-        alert(`已複製為: ${newName}`);
-    };
-
-    window.saveData = async (shouldExit) => {
-        const name = document.getElementById('inpName').value;
-        if(!name) return alert("請輸入姓名");
-        const payload = {
-            sector: document.getElementById('inpSector').value, // V15
-            name: name, 
-            phone: document.getElementById('inpPhone').value,
-            address: document.getElementById('inpAddr').value,
-            noteA: document.getElementById('inpNoteA').value, // V15
-            noteB: document.getElementById('inpNoteB').value, // V15
-            unitPrice: parseInt(document.getElementById('inpPrice').value),
-            holidayDeliver: document.getElementById('chkHoliday').checked,
-            matrix: currentMatrix, manualOverrides: manualOverrides, updatedAt: serverTimestamp()
-        };
-        if(currentId) await updateDoc(doc(db, COL, currentId), payload);
-        else await addDoc(collection(db, COL), payload);
-
-        if(shouldExit) {
-            document.getElementById('workspace').style.display = 'none';
-            document.getElementById('fabGroup').style.display = 'none';
-            document.getElementById('emptyState').style.display = 'block';
-            currentId = null;
-            alert("✅ 儲存並清除畫面");
-        } else {
-            alert("✅ 儲存成功");
-        }
-    };
-
-    // --- V15 列表邏輯：依街區 (SECTORS 順序) ---
-    window.filterList = () => {
-        const searchVal = document.getElementById('searchInput').value.toLowerCase();
-        const list = document.getElementById('customerList');
-        list.innerHTML = "";
-
-        // 1. 篩選
-        const filtered = allCustomers.filter(item => {
-            const c = item.data;
-            const sec = c.sector || "其他";
-            return c.name.toLowerCase().includes(searchVal) || 
-                   (c.phone && c.phone.includes(searchVal)) || 
-                   (c.address && c.address.includes(searchVal)) ||
-                   sec.includes(searchVal);
-        });
-
-        // 2. 群組化 (By Sector)
-        const groups = {};
-        // 初始化所有街區群組以確保順序 (選擇性：如果只想顯示有人的街區，就拿掉這段初始化)
-        // 這裡我們只顯示"有資料"的街區，但依照 SECTORS 順序排
-        
-        filtered.forEach(item => {
-            const sec = item.data.sector || "其他";
-            if(!groups[sec]) groups[sec] = [];
-            groups[sec].push(item);
-        });
-
-        // 3. 排序街區 (依 SECTORS 陣列順序)
-        const sortedKeys = Object.keys(groups).sort((a,b) => {
-            let idxA = SECTORS.indexOf(a);
-            let idxB = SECTORS.indexOf(b);
-            if (idxA === -1) idxA = 999; // 未知街區放到最後
-            if (idxB === -1) idxB = 999;
-            return idxA - idxB;
-        });
-
-        // 4. 渲染
-        if(sortedKeys.length === 0) {
-            list.innerHTML = `<li style="padding:15px;text-align:center;color:#999;">查無資料</li>`;
-            return;
-        }
-
-        sortedKeys.forEach(sec => {
-            const groupDiv = document.createElement('div');
-            groupDiv.className = 'addr-group';
             
-            // 街區標題
-            const header = document.createElement('div');
-            header.className = 'addr-header';
-            header.textContent = `🏙️ ${sec} (${groups[sec].length})`;
-            groupDiv.appendChild(header);
+            <div v-if="currentTab === 'list'" class="hidden md:flex bg-stone-200 p-1 rounded-lg gap-1">
+                <button v-for="mode in groupModes" :key="mode.key" 
+                    @click="groupByField = mode.key"
+                    :class="['px-3 py-1 rounded text-[10px] font-bold transition flex items-center gap-1.5', groupByField === mode.key ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700']">
+                    <i :class="mode.icon"></i> {{ mode.label }}
+                </button>
+            </div>
 
-            // 客戶項目
-            groups[sec].forEach(item => {
-                const c = item.data;
-                const li = document.createElement('div');
-                li.className = `c-item ${item.id===currentId?'active':''}`;
-                
-                // 維持 V10.4 單行顯示 (姓名 / 電話)
-                li.innerHTML = `
-                    <div class="c-item-content">
-                        <span class="c-name">${c.name}</span>
-                        <span class="c-divider">/</span>
-                        <span class="c-phone">${c.phone || '-'}</span>
+            <div class="flex gap-2 items-center">
+                <button @click="settingsModal.show = true" class="w-8 h-8 rounded-full hover:bg-stone-200 text-stone-600 transition flex items-center justify-center" title="設定"><i class="fas fa-cog"></i></button>
+
+                <div v-if="currentTab === 'list'" class="flex bg-stone-200 rounded-lg p-0.5 ml-1">
+                    <button @click="triggerImport" class="w-8 h-8 rounded-md hover:bg-white text-stone-600 text-xs transition shadow-sm"><i class="fas fa-file-import"></i></button>
+                    <button @click="exportData" class="w-8 h-8 rounded-md hover:bg-white text-stone-600 text-xs transition shadow-sm"><i class="fas fa-file-export"></i></button>
+                    <input type="file" ref="fileInput" class="hidden" @change="handleImport" accept=".json">
+                </div>
+
+                <button v-if="currentTab === 'create'" @click="saveOrder" :disabled="isSaving" class="btn-press bg-emerald-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow hover:bg-emerald-700 transition flex items-center gap-2 disabled:opacity-50">
+                    <i class="fas fa-save"></i> 儲存
+                </button>
+
+                <button v-if="currentTab === 'list'" @click="switchToCreate" class="btn-press bg-emerald-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow hover:bg-emerald-700 transition">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button v-if="currentTab === 'create'" @click="switchTab('list')" class="btn-press bg-white border border-stone-300 text-stone-600 w-9 h-9 rounded-lg flex items-center justify-center hover:bg-stone-100 transition shadow-sm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-hidden relative flex flex-col bg-stone-100">
+
+            <div v-if="currentTab === 'list'" class="flex-1 overflow-hidden flex flex-col">
+                <div class="px-4 py-2 bg-white border-b border-stone-200 flex flex-wrap gap-3 items-center shrink-0 shadow-sm z-10">
+                    
+                    <div class="relative group w-48">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <i class="fas fa-search text-stone-300 text-xs group-focus-within:text-emerald-500 transition"></i>
+                        </div>
+                        <input type="text" v-model="searchQuery" placeholder="搜尋 姓名 / 地區..." 
+                            class="w-full pl-8 pr-3 py-1.5 bg-stone-100 border border-stone-200 rounded-full text-xs font-bold text-stone-700 outline-none focus:bg-white focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 transition placeholder-stone-400">
                     </div>
-                `;
-                li.onclick = () => loadCustomer(item.id, c);
-                groupDiv.appendChild(li);
-            });
 
-            list.appendChild(groupDiv);
-        });
-    };
+                    <div class="h-5 w-px bg-stone-200 mx-1"></div>
 
-    // Firebase 監聽器
-    onSnapshot(query(collection(db, COL), orderBy("updatedAt", "desc")), (snap) => {
-        allCustomers = []; 
-        snap.forEach(d => {
-            allCustomers.push({ data: d.data(), id: d.id });
-        });
-        filterList();
-    });
-    
-    document.getElementById('inpPrice').addEventListener('input', renderCal);
-    document.getElementById('chkHoliday').addEventListener('change', renderCal);
-    // 街區變更時不需要重新 renderCal，除非影響運費邏輯(目前無)
+                    <label v-for="st in statusOptions" :key="st" class="cursor-pointer relative group select-none">
+                        <input type="checkbox" :value="st" v-model="filterStatus" class="hidden peer">
+                        <span class="px-3 py-1.5 rounded-lg border border-stone-200 text-[10px] font-extrabold text-stone-400 bg-white transition hover:border-stone-300 flex items-center gap-1.5
+                                     peer-checked:bg-stone-800 peer-checked:text-white peer-checked:border-stone-800 peer-checked:shadow-sm">
+                            <span :class="['w-1.5 h-1.5 rounded-full', filterStatus.includes(st) ? 'bg-white' : 'bg-stone-300']"></span>
+                            {{ st }}
+                        </span>
+                    </label>
 
-    // --- CSV Import (V15 Update) ---
-    document.getElementById('csvInput').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = async (evt) => {
-            const text = evt.target.result;
-            const rows = text.split(/\r?\n/);
-            const headers = rows[0].split(',').map(h => h.trim());
-            
-            // V15 新增欄位偵測
-            const dataIdx = {
-                name: headers.indexOf("姓名"), 
-                phone: headers.indexOf("電話"), 
-                addr: headers.indexOf("地址"),
-                sector: headers.indexOf("街區"), // New
-                noteA: headers.indexOf("備註A"), // New
-                noteB: headers.indexOf("備註B"), // New
-                price: headers.indexOf("單價"), 
-                hol: headers.indexOf("見紅不休"),
-                days: [headers.indexOf("週日"), headers.indexOf("週一"), headers.indexOf("週二"), headers.indexOf("週三"), headers.indexOf("週四"), headers.indexOf("週五"), headers.indexOf("週六")]
-            };
+                    <div class="ml-auto text-[10px] text-stone-400 font-mono">
+                        {{ filteredOrders.length }} cards
+                    </div>
+                </div>
 
-            if(dataIdx.name === -1) return alert("錯誤：CSV 找不到 '姓名' 欄位");
-            
-            document.getElementById('importModal').style.display = 'flex';
-            let count = 0; const total = rows.length - 1;
-            
-            for (let i = 1; i < rows.length; i++) {
-                if(!rows[i].trim()) continue;
-                // 處理 CSV 內的引號 (簡易版)
-                const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                <div v-if="loading" class="flex-1 flex items-center justify-center text-stone-400 text-sm gap-2">
+                    <i class="fas fa-circle-notch animate-spin text-emerald-500"></i> 讀取資料庫...
+                </div>
                 
-                const matrix = {};
-                dataIdx.days.forEach((colIdx, dayIdx) => { 
-                    if(colIdx > -1 && cols[colIdx]) {
-                        const items = cols[colIdx].split(/[,，]/);
-                        items.forEach(item => {
-                            const match = item.match(/([\u4e00-\u9fa5]+)(\d+)/); 
-                            if(match) { matrix[`${dayIdx}_${match[1]}`] = parseInt(match[2]); }
-                        });
-                    }
-                });
+                <div v-else class="flex-1 overflow-x-auto overflow-y-hidden custom-scroll p-4 bg-stone-100">
+                    <div class="h-full flex gap-3 min-w-max pb-2">
+                        
+                        <div v-for="(group, groupKey) in groupedOrders" :key="groupKey" 
+                             :class="['kanban-col-base', getSmartColumnWidth(group.length)]">
+                            
+                            <div class="px-3 py-2 border-b border-stone-300/50 flex justify-between items-center bg-stone-200/50 sticky top-0 z-10 backdrop-blur-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-2.5 h-2.5 rounded-full shadow-sm" :class="getGroupColor(groupKey)"></div>
+                                    <span class="font-extrabold text-stone-700 text-xs truncate max-w-[120px]" :title="groupKey">{{ groupKey === 'undefined' ? '未分類' : groupKey }}</span>
+                                </div>
+                                <span class="bg-white/80 text-stone-500 px-1.5 rounded text-[9px] font-bold shadow-sm">{{ group.length }}</span>
+                            </div>
+
+                            <div class="overflow-y-auto custom-scroll flex-1 p-2">
+                                <div :class="['grid gap-2', getSmartGridCols(group.length)]">
+                                    <div v-for="order in group" :key="order.id" class="bg-white rounded-lg shadow-sm border border-stone-200 hover:border-emerald-400 transition group relative cursor-pointer overflow-hidden flex flex-col h-min" @click="editOrder(order)">
+                                        
+                                        <div class="p-2.5 flex-1 relative">
+                                            <div class="flex justify-between items-start mb-1.5">
+                                                <div class="flex items-center gap-1.5 overflow-hidden">
+                                                    <div :class="['dot-type flex-shrink-0', getTypeDotClass(order.type)]"></div>
+                                                    <h3 class="font-extrabold text-stone-800 text-sm leading-none truncate">{{ order.customerName }}</h3>
+                                                </div>
+                                                <span class="text-emerald-700 font-extrabold font-mono text-xs">${{ (order.totalAmount || 0).toLocaleString() }}</span>
+                                            </div>
+
+                                            <div class="flex justify-between items-center mt-2">
+                                                <div class="text-[9px] text-stone-400 font-bold bg-stone-50 px-1.5 py-0.5 rounded border border-stone-100 truncate flex items-center">
+                                                    <i class="far fa-calendar-alt mr-1 text-[8px]"></i>{{ formatDateRangeShort(order.dates) }}
+                                                </div>
+                                                <span class="text-[9px] text-stone-500 font-bold bg-stone-100 px-1.5 rounded-full truncate max-w-[35%]">{{ order.area || '-' }}</span>
+                                            </div>
+
+                                            <button @click.stop="openHistory(order.customerName)" class="absolute top-8 right-2 opacity-0 group-hover:opacity-100 transition text-stone-300 hover:text-stone-500">
+                                                <i class="fas fa-history text-xs"></i>
+                                            </button>
+                                        </div>
+
+                                        <div class="grid grid-cols-4 border-t border-stone-100 bg-stone-50/50" @click.stop>
+                                            <div v-for="st in statusOptions" :key="st" 
+                                                 @click.stop="quickUpdateStatus(order, st)"
+                                                 :class="['card-status-btn', order.status === st ? 'active-btn bg-active-' + st : '']"
+                                                 :title="st">
+                                                {{ st.substring(0,2) }}
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'create'" class="flex-1 flex flex-col lg:flex-row overflow-hidden bg-stone-50 relative">
                 
-                const docData = {
-                    name: cols[dataIdx.name], 
-                    phone: dataIdx.phone > -1 ? cols[dataIdx.phone] : "",
-                    address: dataIdx.addr > -1 ? cols[dataIdx.addr] : "",
-                    // V15 預設值處理
-                    sector: dataIdx.sector > -1 ? (cols[dataIdx.sector] || "其他") : "其他",
-                    noteA: dataIdx.noteA > -1 ? cols[dataIdx.noteA] : "",
-                    noteB: dataIdx.noteB > -1 ? cols[dataIdx.noteB] : "",
-                    unitPrice: dataIdx.price > -1 ? (parseInt(cols[dataIdx.price]) || 35) : 35,
-                    holidayDeliver: dataIdx.hol > -1 ? (cols[dataIdx.hol] === "TRUE" || cols[dataIdx.hol] === "是") : false,
-                    matrix: matrix, manualOverrides: {}, updatedAt: serverTimestamp()
-                };
-                await addDoc(collection(db, COL), docData);
-                count++;
-                document.getElementById('progressBar').style.width = Math.round((count / total) * 100) + "%";
-            }
-            document.getElementById('importModal').style.display = 'none';
-            alert(`匯入完成！共 ${count} 筆。`);
-            document.getElementById('csvInput').value = ''; 
+                <button @click="isSidebarOpen = !isSidebarOpen" 
+                    class="absolute top-2 left-2 z-30 w-6 h-6 bg-white border border-stone-300 rounded-md flex items-center justify-center text-stone-500 shadow-sm hover:bg-stone-50 transition lg:hidden">
+                    <i :class="isSidebarOpen ? 'fas fa-chevron-left' : 'fas fa-chevron-right'"></i>
+                </button>
+
+                <div :class="['bg-white border-r border-stone-200 h-full flex flex-col z-20 shadow-xl overflow-hidden transition-all duration-300 ease-in-out absolute lg:relative', isSidebarOpen ? 'w-[300px] translate-x-0' : 'w-0 -translate-x-full lg:w-[300px] lg:translate-x-0 opacity-0 lg:opacity-100']">
+                    
+                    <div class="p-3 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center shrink-0">
+                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest"><i class="fas fa-user-edit mr-1"></i>基本資料</span>
+                        <button @click="isSidebarOpen = false" class="lg:hidden text-stone-400"><i class="fas fa-times"></i></button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-5 min-w-[300px]">
+                        
+                        <div class="space-y-1">
+                            <label class="label-sidebar">顧客姓名</label>
+                            <div class="relative">
+                                <input type="text" v-model="form.customerName" @input="onNameInput" list="customer-list" class="w-full bg-stone-50 border border-stone-300 rounded-lg px-3 py-2 text-sm font-extrabold focus:border-emerald-500 outline-none text-stone-800 transition shadow-inner" placeholder="輸入姓名...">
+                            </div>
+                            <datalist id="customer-list"><option v-for="c in savedCustomers" :value="c.name"></option></datalist>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="label-sidebar">地區 (Area)</label>
+                                <input type="text" v-model="form.area" list="area-options" class="input-sidebar">
+                                <datalist id="area-options"><option v-for="a in uniqueAreas" :value="a"></option></datalist>
+                            </div>
+                            <div>
+                                <label class="label-sidebar">單價 (Price)</label>
+                                <input type="number" v-model.number="form.unitPrice" class="input-sidebar text-right text-emerald-800 font-mono">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="label-sidebar">類型 (Type)</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div @click="form.type = '晨間'" :class="['ui-selector-btn type-btn-morning', form.type === '晨間' ? 'active' : '']">
+                                    <div class="dot-type dot-morning"></div>晨間
+                                </div>
+                                <div @click="form.type = '家庭號'" :class="['ui-selector-btn type-btn-family', form.type === '家庭號' ? 'active' : '']">
+                                    <div class="dot-type dot-family"></div>家庭號
+                                </div>
+                                <div @click="form.type = '團購'" :class="['ui-selector-btn type-btn-group', form.type === '團購' ? 'active' : '']">
+                                    <div class="dot-type dot-group"></div>團購
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="label-sidebar">狀態 (Status)</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div v-for="s in statusOptions" :key="s" 
+                                     @click="form.status = s"
+                                     :class="['ui-selector-btn status-btn-base', 
+                                              form.status === s ? getStatusBtnClass(s) + ' active' : '']">
+                                    {{ s }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-stone-100">
+                            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg border border-transparent hover:bg-stone-50 hover:border-stone-200 transition group">
+                                <input type="checkbox" v-model="form.ignoreHolidays" class="text-emerald-600 rounded focus:ring-0 w-3.5 h-3.5 border-stone-300">
+                                <div>
+                                    <span class="block text-[10px] font-bold text-stone-600 group-hover:text-stone-800">強制配送 (Ignore Holiday)</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col h-full overflow-hidden w-full lg:w-auto">
+                    <div class="bg-white border-b border-stone-200 p-2 flex flex-wrap gap-2 justify-between items-center shadow-sm z-10 pl-10 lg:pl-2">
+                        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                            <button @click="setDays('weekday')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded text-[10px] font-bold text-stone-600 transition whitespace-nowrap">平日</button>
+                            <button @click="setDays('everyday')" class="px-2 py-1 bg-stone-100 hover:bg-stone-200 rounded text-[10px] font-bold text-stone-600 transition whitespace-nowrap">全天</button>
+                            <div class="h-4 w-px bg-stone-300 mx-1"></div>
+                            <label v-for="d in [1,2,3,4,5,6,0]" :key="d" :class="['w-6 h-6 shrink-0 rounded flex items-center justify-center text-[10px] font-bold cursor-pointer transition select-none border', form.selectedDays.includes(d) ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-stone-300 border-stone-200 hover:border-stone-300']">
+                                <input type="checkbox" :value="d" v-model="form.selectedDays" class="hidden" @change="generateDates">
+                                {{ dayMap[d] }}
+                            </label>
+                        </div>
+                        <div class="flex items-center gap-1 ml-auto">
+                            <input type="month" v-model="dateRange.start" @change="generateDates" class="input-micro w-24 text-center">
+                            <i class="fas fa-arrow-right text-stone-300 text-xs"></i>
+                            <input type="month" v-model="dateRange.end" @change="generateDates" class="input-micro w-24 text-center">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-1 overflow-hidden">
+                        <div class="flex-1 overflow-y-auto custom-scroll p-4 bg-stone-100/50">
+                            <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+                                <div v-for="(monthData, mIndex) in monthsGrid" :key="mIndex" class="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition">
+                                    <div class="bg-stone-50 px-3 py-2 border-b border-stone-100 flex justify-between items-center cursor-pointer hover:bg-stone-100" @click="toggleMonth(monthData.days)">
+                                        <span class="font-bold text-stone-700 font-mono text-sm">{{ monthData.title }}</span>
+                                        <span v-if="monthData.total > 0" class="text-[9px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold shadow-sm">{{ monthData.total }}</span>
+                                    </div>
+                                    <div class="p-2">
+                                        <div class="grid grid-cols-7 mb-1 text-center">
+                                            <span class="text-[9px] text-stone-400 font-bold" v-for="w in ['一','二','三','四','五','六','日']" :key="w">{{w}}</span>
+                                        </div>
+                                        <div class="grid grid-cols-7 gap-1">
+                                            <div v-for="n in monthData.startDay" :key="'pad-'+n"></div>
+                                            <div v-for="d in monthData.days" :key="d.fullDate" 
+                                                @click="d.isValid ? toggleDateQty(d) : null" 
+                                                :class="['aspect-square rounded-md flex flex-col items-center justify-center relative transition-all duration-75 border',
+                                                    d.isValid 
+                                                        ? (d.qty > 0 ? 'bg-emerald-500 border-emerald-600 shadow-sm cursor-pointer z-10 scale-105' : 'bg-white border-stone-100 cursor-pointer hover:border-emerald-300 hover:bg-emerald-50')
+                                                        : 'bg-stone-100/30 border-transparent opacity-30 cursor-default'
+                                                ]">
+                                                <div v-if="d.isSpecial" class="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-purple-400 rounded-full z-20"></div>
+                                                <span :class="['text-[10px] font-bold leading-none', d.qty > 0 ? 'text-white' : 'text-stone-600']">{{ d.dateStr }}</span>
+                                                <div v-if="d.qty > 0" class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-white text-emerald-700 rounded-full flex items-center justify-center text-[8px] font-extrabold shadow border border-emerald-100">{{ d.qty }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="w-[260px] bg-white border-l border-stone-200 flex flex-col shadow-lg z-20 hidden md:flex">
+                            <div class="p-2 bg-emerald-50 border-b border-emerald-100 flex justify-between items-center">
+                                <span class="text-[10px] font-bold text-emerald-800 uppercase">Bill</span>
+                                <div class="flex bg-white rounded p-0.5 shadow-sm">
+                                    <button @click="copyMode='A'" :class="['text-[9px] px-2 rounded transition', copyMode==='A'?'bg-emerald-600 text-white font-bold':'text-stone-400']">明細</button>
+                                    <button @click="copyMode='B'" :class="['text-[9px] px-2 rounded transition', copyMode==='B'?'bg-emerald-600 text-white font-bold':'text-stone-400']">月結</button>
+                                </div>
+                            </div>
+                            <div class="flex-1 relative">
+                                <textarea readonly v-model="generatedBillText" class="w-full h-full text-[10px] font-mono bg-white p-3 text-stone-700 outline-none resize-none leading-relaxed border-none"></textarea>
+                                <button @click="copyBill" class="absolute bottom-4 right-4 bg-emerald-600 text-white w-8 h-8 rounded-full shadow-lg hover:bg-emerald-700 flex items-center justify-center transition transform active:scale-90" title="複製帳單">
+                                    <i class="far fa-copy text-xs"></i>
+                                </button>
+                            </div>
+                            <div class="p-3 bg-stone-50 border-t border-stone-200">
+                                <div class="flex justify-between items-end">
+                                    <span class="text-xs text-stone-500 font-bold">Total</span>
+                                    <span class="text-lg font-extrabold text-emerald-700 font-mono">${{ totalAmount.toLocaleString() }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <transition name="fade">
+            <div v-if="historyModal.show" class="fixed inset-0 z-[60] flex items-center justify-center bg-stone-900/50 backdrop-blur-sm p-4 md:p-10" @click.self="historyModal.show = false">
+                <div class="bg-white w-full max-w-5xl h-full max-h-[85vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row border border-white/60">
+                    <div class="w-full md:w-1/2 bg-stone-50 flex flex-col border-r border-stone-200">
+                        <div class="p-4 border-b border-stone-200 flex justify-between items-center bg-white">
+                            <div><h3 class="font-bold text-lg text-stone-800">{{ historyModal.customerName }} <span class="text-xs text-stone-400 font-normal">歷史紀錄</span></h3></div>
+                            <button @click="historyModal.show = false" class="w-8 h-8 rounded-full bg-stone-100 text-stone-500 hover:bg-stone-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-3">
+                            <div v-for="ord in historyModal.orders" :key="ord.id" 
+                                :class="['bg-white border rounded-xl p-3 cursor-pointer transition flex items-center gap-3 relative overflow-hidden', historyModal.selectedIds.includes(ord.id) ? 'border-emerald-500 ring-1 ring-emerald-500 shadow-md' : 'border-stone-200 hover:border-emerald-300']"
+                                @click="toggleHistorySelection(ord)">
+                                <div :class="['w-1 h-full absolute left-0 top-0', getStatusColorBg(ord.status)]"></div>
+                                <div class="flex items-center justify-center w-5 h-5 rounded border border-stone-300 text-white" :class="historyModal.selectedIds.includes(ord.id) ? 'bg-emerald-500 border-emerald-500' : 'bg-white'"><i class="fas fa-check text-[10px]" v-show="historyModal.selectedIds.includes(ord.id)"></i></div>
+                                <div class="flex-1">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-[10px] bg-stone-100 text-stone-500 px-1.5 rounded font-bold">{{ formatDateRangeShort(ord.dates) }}</span>
+                                        <span class="text-emerald-700 font-bold font-mono text-sm">${{ ord.totalAmount }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-end">
+                                        <span class="text-[10px] text-stone-400">{{ ord.totalCount }} 瓶 @ {{ ord.unitPrice }}</span>
+                                        <span class="text-[9px] px-1.5 py-0.5 rounded border text-stone-500 bg-stone-50">{{ ord.status }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/2 bg-white flex flex-col relative">
+                        <div class="p-3 border-b border-stone-100 flex justify-between items-center">
+                            <span class="font-bold text-stone-700 text-sm">合併預覽</span>
+                            <button v-if="historyModal.selectedIds.length > 0" @click="copyCombinedBill" class="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold shadow hover:bg-emerald-700 transition"><i class="far fa-copy mr-1"></i>複製</button>
+                        </div>
+                        <textarea readonly :value="combinedBillText" class="flex-1 w-full p-6 text-xs font-mono text-stone-700 outline-none resize-none leading-relaxed"></textarea>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="settingsModal.show" class="fixed inset-0 z-[70] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-6" @click.self="settingsModal.show = false">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col h-[70vh] border border-white/50">
+                    <div class="p-4 border-b border-stone-200 bg-stone-50 flex justify-between items-center">
+                        <h3 class="font-bold text-stone-800 text-sm">營運設定</h3>
+                        <button @click="settingsModal.show = false" class="text-stone-400 hover:text-stone-600"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="p-4 flex-1 overflow-y-auto custom-scroll space-y-3">
+                        <div class="flex gap-2">
+                            <input type="date" v-model="newHoliday.date" class="w-full bg-white border border-stone-300 rounded px-2 py-1 text-xs outline-none">
+                            <input type="text" v-model="newHoliday.reason" placeholder="原因" class="w-full bg-white border border-stone-300 rounded px-2 py-1 text-xs outline-none">
+                            <button @click="addHoliday" class="bg-emerald-600 text-white rounded px-3 text-xs font-bold shadow hover:bg-emerald-700"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <div class="space-y-2 mt-4">
+                             <div v-for="(reason, date) in specialDays" :key="date" class="flex justify-between items-center bg-stone-50 p-2 rounded border border-stone-200">
+                                <div><div class="text-[11px] font-bold text-stone-700">{{ date }}</div><div class="text-[10px] text-purple-600 font-bold">{{ reason }}</div></div>
+                                <button @click="removeHoliday(date)" class="text-stone-400 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <transition name="fade">
+            <div v-if="modal.show" class="fixed inset-0 z-[80] flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-6" @click.self="closeModal">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center border border-white/50">
+                    <div :class="['w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 text-lg shadow-sm', modal.type==='error'?'bg-red-50 text-red-500':'bg-emerald-50 text-emerald-500']">
+                        <i :class="modal.type==='error'?'fas fa-exclamation':'fas fa-check'"></i>
+                    </div>
+                    <h3 class="font-bold text-base mb-1 text-stone-800">{{ modal.title }}</h3>
+                    <p class="text-xs text-stone-600 mb-5 break-all leading-relaxed">{{ modal.message }}</p>
+                    <button @click="closeModal" class="w-full bg-stone-800 text-white py-2 rounded-xl font-bold hover:bg-stone-900 transition text-xs shadow-lg">確定</button>
+                </div>
+            </div>
+        </transition>
+
+    </div>
+
+    <script type="module">
+        import { createApp, ref, computed, reactive, onMounted, watch } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref as dbRef, push, onValue, remove, update, set } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6D9vh6J2mdnjz2VXEVe99oi7oLF-irFo",
+            authDomain: "crm-ts-1225-001.firebaseapp.com",
+            databaseURL: "https://crm-ts-1225-001-default-rtdb.firebaseio.com",
+            projectId: "crm-ts-1225-001",
+            storageBucket: "crm-ts-1225-001.firebasestorage.app",
+            messagingSenderId: "925760221722",
+            appId: "1:925760221722:web:1aeda0b82f1f16b8dcd7a3"
         };
-        reader.readAsText(file);
-    });
 
-    // --- CSV Export (V15 Update) ---
-    window.exportCSV = () => {
-        if(allCustomers.length === 0) return alert("無資料可匯出");
-        // V15 Header Include New Fields
-        let csvContent = "\uFEFF姓名,電話,街區,地址,備註A,備註B,單價,見紅不休,週日,週一,週二,週三,週四,週五,週六\n";
-        
-        allCustomers.forEach(item => {
-            const c = item.data;
-            const mx = c.matrix || {};
-            const daysData = [];
-            for (let d = 0; d < 7; d++) {
-                let dayStrParts = [];
-                FLAVORS.forEach(f => {
-                    const key = `${d}_${f}`;
-                    if(mx[key] && mx[key] > 0) dayStrParts.push(`${f}${mx[key]}`);
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        createApp({
+            setup() {
+                const currentTab = ref('list');
+                const loading = ref(true);
+                const isSaving = ref(false);
+                const editMode = ref(false);
+                const currentOrderId = ref(null);
+                const searchQuery = ref('');
+                const isSidebarOpen = ref(true);
+
+                const modal = reactive({ show: false, title: '', message: '', type: 'info' });
+                const settingsModal = reactive({ show: false });
+                const historyModal = reactive({ show: false, customerName: '', orders: [], selectedIds: [] });
+
+                const orders = ref([]);
+                const savedCustomers = ref([]);
+                const specialDays = ref({});
+                const newHoliday = reactive({ date: '', reason: '' });
+                const fileInput = ref(null);
+
+                const statusOptions = ['暫存', '已通知', '已出帳', '已收款'];
+                const filterStatus = ref([...statusOptions]);
+                const groupByField = ref('status');
+                const groupModes = [
+                    { key: 'status', label: '狀態', icon: 'fas fa-tasks' },
+                    { key: 'area', label: '地區', icon: 'fas fa-map-marked-alt' },
+                    { key: 'type', label: '類型', icon: 'fas fa-tags' }
+                ];
+
+                const dateRange = reactive({ start: '2025-06', end: '2026-03' });
+                const form = reactive({ 
+                    customerName: '', area: '', unitPrice: 30, 
+                    status: '暫存', type: '晨間', selectedDays: [1],
+                    ignoreHolidays: false 
                 });
-                daysData.push(dayStrParts.join(";")); // Use ; to separate flavors in CSV to avoid conflict
-            }
-            
-            const row = [
-                c.name, 
-                c.phone || "", 
-                c.sector || "其他", // New
-                c.address || "", 
-                c.noteA || "", // New
-                c.noteB || "", // New
-                c.unitPrice || 35, 
-                c.holidayDeliver ? "TRUE" : "FALSE", 
-                ...daysData
-            ];
-            
-            const csvRow = row.map(val => {
-                const str = String(val);
-                return (str.includes(",") || str.includes("\"")) ? `"${str.replace(/"/g, '""')}"` : str;
-            }).join(",");
-            csvContent += csvRow + "\n";
-        });
-        
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `export_v15_${new Date().toISOString().slice(0,10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+                const quantityMap = reactive(new Map());
+                const dayMap = { 1: '一', 2: '二', 3: '三', 4: '四', 5: '五', 6: '六', 0: '日' };
+                const copyMode = ref('A');
 
-</script>
+                const showModal = (t, m, type='success') => { modal.title = t; modal.message = m; modal.type = type; modal.show = true; };
+                const closeModal = () => modal.show = false;
+                const reloadPage = () => window.location.reload();
+
+                const exportData = () => {
+                    const dataStr = JSON.stringify(orders.value, null, 2);
+                    const blob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = `crm_backup_${new Date().toISOString().split('T')[0]}.json`; a.click();
+                };
+                const triggerImport = () => fileInput.value.click();
+                const handleImport = (e) => {
+                    const file = e.target.files[0]; if(!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async (ev) => {
+                        try {
+                            const data = JSON.parse(ev.target.result);
+                            if(Array.isArray(data) && confirm(`確認匯入 ${data.length} 筆資料？`)) {
+                                for(const item of data) { const { id, ...c } = item; await push(dbRef(db, 'orders'), c); }
+                                showModal('匯入成功', `成功載入 ${data.length} 筆`);
+                            }
+                        } catch(err) { showModal('匯入失敗', err.message, 'error'); }
+                    };
+                    reader.readAsText(file);
+                };
+
+                onMounted(() => {
+                    onValue(dbRef(db, 'orders'), (s) => { 
+                        const d = s.val(); 
+                        orders.value = d ? Object.entries(d).map(([k, v]) => ({ id: k, ...v })) : []; 
+                        loading.value = false; 
+                    });
+                    onValue(dbRef(db, 'customers'), (s) => { savedCustomers.value = s.val() ? Object.values(s.val()) : []; });
+                    onValue(dbRef(db, 'settings/holidays'), (s) => { specialDays.value = s.val() || {}; });
+                });
+
+                const filteredOrders = computed(() => {
+                    return orders.value.filter(o => {
+                        const statusMatch = filterStatus.value.includes(o.status || '暫存');
+                        const searchLower = searchQuery.value.toLowerCase();
+                        const searchMatch = !searchQuery.value || 
+                                            (o.customerName && o.customerName.toLowerCase().includes(searchLower)) ||
+                                            (o.area && o.area.toLowerCase().includes(searchLower));
+                        return statusMatch && searchMatch;
+                    }).sort((a,b) => new Date(b.updatedAt||b.createdAt||0) - new Date(a.updatedAt||a.createdAt||0));
+                });
+
+                const groupedOrders = computed(() => {
+                    const groups = {};
+                    const field = groupByField.value;
+                    filteredOrders.value.forEach(order => {
+                        let key = order[field];
+                        if (field === 'status' && !key) key = '暫存';
+                        if (field === 'area' && !key) key = '未分區';
+                        if (field === 'type' && !key) key = '未分類';
+                        if (!groups[key]) groups[key] = [];
+                        groups[key].push(order);
+                    });
+                    const sortedKeys = Object.keys(groups).sort((a,b) => {
+                         if(field === 'status') return statusOptions.indexOf(a) - statusOptions.indexOf(b);
+                         return a.localeCompare(b);
+                    });
+                    const sortedGroups = {};
+                    sortedKeys.forEach(k => sortedGroups[k] = groups[k]);
+                    return sortedGroups;
+                });
+
+                // v3.7.0 Smart Grid Logic
+                const getSmartColumnWidth = (count) => {
+                    if (count > 16) return 'w-[50rem]'; // 3 cols
+                    if (count > 8) return 'w-[33rem]'; // 2 cols
+                    return 'w-64'; // 1 col
+                };
+                const getSmartGridCols = (count) => {
+                    if (count > 16) return 'grid-cols-3';
+                    if (count > 8) return 'grid-cols-2';
+                    return 'grid-cols-1';
+                };
+
+                const openHistory = (name) => {
+                    if(!name) return;
+                    historyModal.customerName = name;
+                    historyModal.orders = orders.value.filter(o => o.customerName === name).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    historyModal.selectedIds = [];
+                    historyModal.show = true;
+                };
+                const toggleHistorySelection = (ord) => {
+                    const idx = historyModal.selectedIds.indexOf(ord.id);
+                    if(idx > -1) historyModal.selectedIds.splice(idx, 1);
+                    else historyModal.selectedIds.push(ord.id);
+                };
+
+                const combinedBillText = computed(() => {
+                    if(historyModal.selectedIds.length === 0) return '請勾選左側訂單...';
+                    const selected = historyModal.orders.filter(o => historyModal.selectedIds.includes(o.id));
+                    let totalVal = 0, totalBtls = 0, details = '';
+                    selected.forEach(o => {
+                        totalVal += (parseInt(o.totalAmount) || 0);
+                        totalBtls += (parseInt(o.totalCount) || 0);
+                        details += `• ${formatDateRangeShort(o.dates)}｜${o.totalCount}瓶 $${o.totalAmount}\n`;
+                    });
+                    return `顧客：${historyModal.customerName}\n------------------\n${details}------------------\n共：${totalBtls} 瓶\n應收：NT$${totalVal.toLocaleString()}`;
+                });
+                const copyCombinedBill = () => { navigator.clipboard.writeText(combinedBillText.value).then(() => showModal('已複製', '合併帳單內容已複製')); };
+
+                const toSafeKey = (d) => d.replace(/\//g, '-');
+                
+                const monthsGrid = computed(() => {
+                    if (!dateRange.start || !dateRange.end) return [];
+                    const [sy, sm] = dateRange.start.split('-').map(Number);
+                    const [ey, em] = dateRange.end.split('-').map(Number);
+                    const start = new Date(sy, sm - 1, 1);
+                    const end = new Date(ey, em, 0);
+                    const activeDays = new Set(form.selectedDays);
+                    const grids = [];
+                    let current = new Date(start);
+                    while (current <= end) {
+                        const y = current.getFullYear();
+                        const m = current.getMonth();
+                        const mStr = (m + 1).toString().padStart(2, '0');
+                        const monthKey = `${y}-${mStr}`;
+                        const daysInMonth = new Date(y, m + 1, 0).getDate();
+                        const firstDayOfWeek = (new Date(y, m, 1).getDay() - 1 + 7) % 7;
+                        const days = [];
+                        let totalQty = 0;
+                        for (let d = 1; d <= daysInMonth; d++) {
+                            const dStr = d.toString().padStart(2, '0');
+                            const fDate = `${y}/${mStr}/${dStr}`;
+                            const fDateDash = `${y}-${mStr}-${dStr}`; 
+                            const dayOfWeek = new Date(y, m, d).getDay();
+                            const isValid = activeDays.has(dayOfWeek);
+                            const specialReason = specialDays.value[fDateDash];
+                            const isSpecial = !!specialReason;
+                            let qty = quantityMap.get(fDate) || 0;
+                            if (isValid) totalQty += qty;
+                            days.push({ fullDate: fDate, dateStr: dStr, dayStr: dayOfWeek, qty: qty, isValid: isValid, isSpecial: isSpecial, specialReason: specialReason });
+                        }
+                        const amount = Math.floor(totalQty * form.unitPrice);
+                        grids.push({ title: monthKey, days: days, startDay: firstDayOfWeek, total: totalQty, amount: amount.toLocaleString() });
+                        current = new Date(y, m + 1, 1);
+                    }
+                    return grids;
+                });
+
+                const toggleDateQty = (d) => { 
+                    let q = d.qty; 
+                    if (q === 0) q = 1; else if (q === 1) q = 2; else if (q === 2) q = 1.5; else q = 0;
+                    quantityMap.set(d.fullDate, q);
+                };
+                
+                const toggleMonth = (days) => {
+                    const validDays = days.filter(d => d.isValid);
+                    if(validDays.length === 0) return;
+                    const targets = form.ignoreHolidays ? validDays : validDays.filter(d => !d.isSpecial);
+                    const hasQty = targets.some(d => quantityMap.get(d.fullDate) > 0);
+                    targets.forEach(d => quantityMap.set(d.fullDate, hasQty ? 0 : 1));
+                };
+
+                const totalCount = computed(() => {
+                    let sum = 0;
+                    for (const q of quantityMap.values()) sum += q;
+                    return sum;
+                });
+                const totalAmount = computed(() => Math.floor(totalCount.value * form.unitPrice));
+
+                const generatedBillText = computed(() => {
+                    const active = [];
+                    const sortedKeys = Array.from(quantityMap.keys()).sort();
+                    for(const k of sortedKeys) {
+                        if(quantityMap.get(k) > 0) {
+                            const [y,m,d] = k.split('/');
+                            active.push({ fullDate: k, dateStr: d, qty: quantityMap.get(k) });
+                        }
+                    }
+                    if (active.length === 0) return '尚未選擇日期';
+                    const header = active[0].fullDate.substring(0, 7).replace('/', '-');
+                    const byMonth = {};
+                    active.forEach(d => {
+                        const k = d.fullDate.substring(0, 7);
+                        if (!byMonth[k]) byMonth[k] = [];
+                        byMonth[k].push(d);
+                    });
+
+                    let details = '';
+                    if (copyMode.value === 'A') {
+                        for(const [mKey, dates] of Object.entries(byMonth)) {
+                            const [y, m] = mKey.split('/');
+                            details += `\n🔺 ${parseInt(m)}月\n`;
+                            details += dates.map(d => `${parseInt(d.dateStr)}${d.qty!==1?'*'+d.qty:''}`).join('、') + '\n';
+                        }
+                    } else {
+                        details += '\n配送統計：\n';
+                        for(const [mKey, dates] of Object.entries(byMonth)) {
+                            const [y, m] = mKey.split('/');
+                            const sum = dates.reduce((a,b)=>a+b.qty,0);
+                            details += `${parseInt(m)}月: ${sum}瓶\n`;
+                        }
+                    }
+                    return `配送帳單 (${header})\n顧客：${form.customerName}\n${details}------------------\n總計：${totalCount.value} 瓶\n應收：NT$${totalAmount.value}`;
+                });
+                const copyBill = () => { navigator.clipboard.writeText(generatedBillText.value).then(() => showModal('複製成功', '明細已複製')); };
+
+                const saveOrder = async () => {
+                    if (!form.customerName) { showModal('錯誤', '請輸入姓名', 'error'); return; }
+                    isSaving.value = true;
+                    try {
+                        const datesObj = {};
+                        for (const [k, v] of quantityMap.entries()) { if(v > 0) datesObj[toSafeKey(k)] = v; }
+                        const payload = {
+                            customerName: form.customerName, area: form.area || '未分區', unitPrice: form.unitPrice || 30,
+                            status: form.status || '暫存', type: form.type || '晨間', selectedDays: form.selectedDays || [],
+                            totalAmount: totalAmount.value, totalCount: totalCount.value, dates: datesObj, 
+                            updatedAt: new Date().toISOString(), ignoreHolidays: form.ignoreHolidays || false
+                        };
+                        if (editMode.value && currentOrderId.value) await update(dbRef(db, `orders/${currentOrderId.value}`), payload);
+                        else { payload.createdAt = new Date().toISOString(); await push(dbRef(db, 'orders'), payload); }
+                        
+                        const key = btoa(encodeURIComponent(form.customerName)).replace(/[^a-zA-Z0-9]/g, '');
+                        await update(dbRef(db, `customers/${key}`), { 
+                            name: form.customerName, area: form.area, unitPrice: form.unitPrice,
+                            type: form.type, status: form.status, ignoreHolidays: form.ignoreHolidays 
+                        });
+                        showModal('儲存成功', '訂單已更新');
+                        switchTab('list');
+                    } catch (e) { showModal('儲存失敗', e.message, 'error'); } 
+                    finally { isSaving.value = false; }
+                };
+
+                const quickUpdateStatus = async (order, newStatus) => {
+                    if (order.status === newStatus) return;
+                    try {
+                        await update(dbRef(db, `orders/${order.id}`), { status: newStatus, updatedAt: new Date().toISOString() });
+                    } catch(e) { console.error(e); }
+                };
+
+                const editOrder = (o) => {
+                    editMode.value = true; currentOrderId.value = o.id;
+                    form.customerName = o.customerName || ''; form.area = o.area || ''; form.unitPrice = o.unitPrice || 30;
+                    form.status = o.status || '暫存'; form.type = o.type || '晨間'; form.selectedDays = o.selectedDays || [1];
+                    form.ignoreHolidays = o.ignoreHolidays || false;
+                    quantityMap.clear();
+                    if(o.dates) { for(const [k, v] of Object.entries(o.dates)) { quantityMap.set(k.replace(/-/g, '/'), v); } }
+                    isSidebarOpen.value = true; 
+                    switchTab('create');
+                };
+
+                const onNameInput = () => { 
+                    const f = savedCustomers.value.find(c => c.name === form.customerName); 
+                    if (f) { 
+                        form.area = f.area || ''; form.unitPrice = f.unitPrice || 30;
+                        if(f.type) form.type=f.type; if(f.status) form.status=f.status; 
+                        form.ignoreHolidays = f.ignoreHolidays || false;
+                    } 
+                };
+
+                const switchTab = (t) => {
+                    if (t === 'create' && !editMode.value) { 
+                        form.customerName=''; form.area=''; form.unitPrice=30; 
+                        form.status='暫存'; form.type='晨間'; form.selectedDays=[1]; form.ignoreHolidays=false;
+                        quantityMap.clear();
+                        isSidebarOpen.value = true;
+                    } 
+                    else if (t === 'list') { editMode.value = false; currentOrderId.value = null; }
+                    currentTab.value = t;
+                };
+                const switchToCreate = () => { editMode.value = false; switchTab('create'); };
+
+                const setDays = (type) => {
+                    if(type === 'weekday') form.selectedDays = [1,2,3,4,5];
+                    else form.selectedDays = [0,1,2,3,4,5,6];
+                };
+                const addHoliday = () => {
+                    if(newHoliday.date && newHoliday.reason) {
+                        update(dbRef(db, 'settings/holidays'), { [newHoliday.date]: newHoliday.reason });
+                        newHoliday.date = ''; newHoliday.reason = '';
+                    }
+                };
+                const removeHoliday = (date) => { if(confirm('移除此假日？')) remove(dbRef(db, `settings/holidays/${date}`)); };
+                
+                const formatDateRangeShort = (dates) => {
+                    if (!dates) return '';
+                    const keys = Object.keys(dates).sort();
+                    if (keys.length === 0) return '';
+                    const start = keys[0].substring(5); 
+                    const end = keys[keys.length - 1].substring(5);
+                    return start === end ? start : `${start}~${end}`;
+                };
+
+                const uniqueAreas = computed(() => [...new Set(savedCustomers.value.map(c => c.area).filter(Boolean))]);
+                const getStatusColorBg = (s) => { 
+                    switch(s){ case '已通知':return 'bg-amber-400'; case '已出帳':return 'bg-blue-400'; case '已收款':return 'bg-emerald-400'; default:return 'bg-stone-300'; }
+                };
+                const getStatusBtnClass = (s) => {
+                    switch(s){ case '已通知':return 'status-btn-notified'; case '已出帳':return 'status-btn-billed'; case '已收款':return 'status-btn-paid'; default:return 'status-btn-save'; }
+                };
+                const getTypeDotClass = (t) => {
+                    switch(t){ case '家庭號':return 'dot-family'; case '團購':return 'dot-group'; default:return 'dot-morning'; }
+                };
+                const getGroupColor = (k) => {
+                    if(k==='已收款') return 'bg-emerald-500'; if(k==='已出帳') return 'bg-blue-500'; if(k==='已通知') return 'bg-amber-500'; if(k==='暫存') return 'bg-stone-400';
+                    return 'bg-stone-400';
+                };
+
+                return {
+                    currentTab, loading, isSaving, editMode, switchTab, switchToCreate,
+                    form, savedCustomers, uniqueAreas, onNameInput, dayMap,
+                    monthsGrid, toggleDateQty, modal, showModal, closeModal,
+                    totalCount, totalAmount, generatedBillText, copyBill, 
+                    settingsModal, newHoliday, addHoliday, removeHoliday, specialDays,
+                    saveOrder, editOrder, formatDateRangeShort,
+                    getStatusColorBg, getTypeDotClass, reloadPage, copyMode,
+                    exportData, handleImport, triggerImport, fileInput,
+                    statusOptions, filterStatus, filteredOrders, dateRange,
+                    groupByField, groupModes, groupedOrders, getGroupColor,
+                    historyModal, openHistory, toggleHistorySelection, combinedBillText, copyCombinedBill,
+                    setDays, toggleMonth,
+                    searchQuery, quickUpdateStatus, isSidebarOpen,
+                    // v3.7.0 Smart Layout
+                    getSmartColumnWidth, getSmartGridCols, getStatusBtnClass
+                };
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>
